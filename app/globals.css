@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: sans-serif;
+  direction: rtl;
+  text-align: right;
+}
+
+h1, h2, h3 {
+  font-weight: bold;
+}
+
+button, a {
+  transition: all 0.2s ease-in-out;
+}
