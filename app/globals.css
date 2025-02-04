@@ -2,16 +2,96 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    /* Core colors */
+    --background: #FFFFFF;
+    --foreground: #11181C;
+    
+    /* Primary colors */
+    --primary-lighter: #f0f9ff;
+    --primary-light: #7dd3fc;
+    --primary-default: #0ea5e9;
+    --primary-dark: #0284c7;
+    --primary-darker: #0369a1;
+    
+    /* Border colors */
+    --border-light: #e5e7eb;
+    --border-default: #d1d5db;
+    --border-dark: #9ca3af;
+  }
+
+  .dark {
+    --background: #09090B;
+    --foreground: #ECEDEE;
+    
+    --primary-lighter: #164e63;
+    --primary-light: #0891b2;
+    --primary-default: #06b6d4;
+    --primary-dark: #22d3ee;
+    --primary-darker: #67e8f9;
+    
+    --border-light: #1f2937;
+    --border-default: #374151;
+    --border-dark: #4b5563;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-[hsl(var(--border))];
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .glass-effect {
+    @apply bg-background/70 backdrop-blur-lg border border-border-light/20;
+  }
+
+  .hover-effect {
+    @apply transition-all duration-300 ease-in-out hover:scale-[1.02];
+  }
+}
+
+@layer utilities {
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary-light to-primary-dark bg-clip-text text-transparent;
+  }
+  
+  .glass-card {
+    @apply bg-background/50 backdrop-blur-lg border border-border-subtle/50 shadow-soft-md;
+  }
+  
+  .section-padding {
+    @apply py-20 px-4;
+  }
+}
+
 body {
-  font-family: sans-serif;
-  direction: rtl;
-  text-align: right;
+	font-family: "Inter", sans-serif;
+	direction: rtl;
+	text-align: right;
+	margin: 0;
+	padding-top: 4rem; /* To account for fixed navbar */
 }
 
-h1, h2, h3 {
-  font-weight: bold;
+h1,
+h2,
+h3 {
+	font-weight: bold;
 }
 
-button, a {
-  transition: all 0.2s ease-in-out;
+button,
+a {
+	transition: all 0.2s ease-in-out;
+}
+
+.container {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 0 1rem;
 }

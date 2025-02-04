@@ -3,9 +3,11 @@
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { CircularProgress, Box, Typography } from "@mui/material";
 
 export default function Dashboard() {
 	const [user, setUser] = useState<any>(null);
+	const [loading, setLoading] = useState(true);
 	const router = useRouter();
 
 	useEffect(() => {
@@ -19,10 +21,20 @@ export default function Dashboard() {
 			} catch (err) {
 				localStorage.removeItem("token");
 				router.push("/login");
+			} finally {
+				setLoading(false);
 			}
 		};
 		fetchUser();
 	}, []);
 
-	return <p>در حال انتقال به داشبورد...</p>;
+	return (
+		<Box display="flex" justifyContent="center" alignItems="center" height="100vh" className="p-4 bg-gradient-to-b from-primary to-secondary">
+			{loading ? (
+				<CircularProgress />
+			) : (
+				<Typography variant="h6" className="text-white">در حال انتقال به داشبورد...</Typography>
+			)}
+		</Box>
+	);
 }

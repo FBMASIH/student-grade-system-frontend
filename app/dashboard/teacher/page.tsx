@@ -62,12 +62,12 @@ export default function TeacherDashboard() {
 	};
 
 	return (
-		<div className="w-full max-w-4xl">
-			<h2 className="text-3xl font-bold text-blue-600 mb-6">داشبورد استاد</h2>
+		<div className="w-full max-w-4xl mx-auto p-4 font-persian">
+			<h2 className="text-3xl font-bold text-primary mb-6">داشبورد استاد</h2>
 			{error && <p className="text-red-500 mb-4">{error}</p>}
 
-			<div className="bg-white p-6 rounded-lg shadow-md mb-8">
-				<h3 className="text-2xl font-bold text-blue-600 mb-4">
+			<div className="bg-white p-8 rounded-4xl shadow-lg mb-8">
+				<h3 className="text-2xl font-bold text-primary mb-4">
 					ثبت نمره دانشجو
 				</h3>
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -76,37 +76,37 @@ export default function TeacherDashboard() {
 						placeholder="شناسه دانشجو"
 						value={studentId}
 						onChange={(e) => setStudentId(e.target.value)}
-						className="p-2 border rounded"
+						className="p-3 border rounded-lg"
 					/>
 					<input
 						type="text"
 						placeholder="نام درس"
 						value={subject}
 						onChange={(e) => setSubject(e.target.value)}
-						className="p-2 border rounded"
+						className="p-3 border rounded-lg"
 					/>
 					<input
 						type="number"
 						placeholder="نمره"
 						value={score}
 						onChange={(e) => setScore(e.target.value)}
-						className="p-2 border rounded"
+						className="p-3 border rounded-lg"
 					/>
 				</div>
 				<button
 					onClick={handleAssignGrade}
-					className="mt-4 w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition">
+					className="mt-4 w-full bg-secondary text-white p-3 rounded-lg hover:bg-purple-700 transition">
 					ثبت نمره
 				</button>
 			</div>
 
-			<div className="bg-white p-6 rounded-lg shadow-md">
-				<h3 className="text-2xl font-bold text-blue-600 mb-4">لیست اعتراضات</h3>
+			<div className="bg-white p-8 rounded-4xl shadow-lg">
+				<h3 className="text-2xl font-bold text-primary mb-4">لیست اعتراضات</h3>
 				{objections.length === 0 ? (
 					<p className="text-gray-600">هیچ اعتراضی موجود نیست</p>
 				) : (
 					<table className="w-full border rounded-lg overflow-hidden">
-						<thead className="bg-blue-600 text-white">
+						<thead className="bg-primary text-white">
 							<tr>
 								<th className="p-3">درس</th>
 								<th className="p-3">نمره</th>

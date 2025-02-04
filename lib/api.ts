@@ -1,10 +1,11 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/";
 
 const apiClient = axios.create({
 	baseURL: API_URL,
 	headers: { "Content-Type": "application/json" },
+	timeout: 10000,
 });
 
 apiClient.interceptors.request.use(
@@ -24,6 +25,7 @@ apiClient.interceptors.response.use(
 		if (error.response) {
 			if (error.response.status === 401) {
 				localStorage.removeItem("token");
+				window.location.href = "/login";
 			}
 		}
 		return Promise.reject(error);
@@ -31,18 +33,11 @@ apiClient.interceptors.response.use(
 );
 
 export const api = {
-	getUsers: () => apiClient.get("/users"),
-
-	updateUserRole: (id: string, role: string) =>
-		apiClient.patch(`/users/${id}/role`, { role }),
-
-	deleteUser: (id: string) => apiClient.delete(`/users/${id}`),
-
 	login: (username: string, password: string) =>
 		apiClient.post("/auth/login", { username, password }),
 
 	registerUser: (username: string, password: string) =>
-		apiClient.post("/users/register", { username, password }),
+		apiClient.post("/auth/register", { username, password }),
 
 	getCurrentUser: () => apiClient.get("/users/me"),
 
@@ -60,6 +55,13 @@ export const api = {
 	assignGrade: (studentId: number, subject: string, score: number) =>
 		apiClient.post("/grades/assign", { studentId, subject, score }),
 
+	// مدیریت کاربران توسط مدیر کل:
+	getUsers: () => apiClient.get("/users"),
+	updateUserRole: (id: number, role: string) =>
+		apiClient.patch(`/users/${id}/role`, { role }),
+	deleteUser: (id: number) => apiClient.delete(`/users/${id}`),
+	createUserManual: (username: string, password: string, role: string) =>
+		apiClient.post("/users/manual", { username, password, role }),
 	uploadUsersExcel: (formData: FormData) =>
 		apiClient.post("/users/upload", formData, {
 			headers: { "Content-Type": "multipart/form-data" },
