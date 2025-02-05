@@ -3,38 +3,40 @@
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CircularProgress, Box, Typography } from "@mui/material";
+import { CircularProgress } from "@nextui-org/react";
 
 export default function Dashboard() {
-	const [user, setUser] = useState<any>(null);
-	const [loading, setLoading] = useState(true);
-	const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-	useEffect(() => {
-		const fetchUser = async () => {
-			try {
-				const { data } = await api.getCurrentUser();
-				setUser(data);
-				if (data.role === "student") router.push("/dashboard/student");
-				if (data.role === "teacher") router.push("/dashboard/teacher");
-				if (data.role === "admin") router.push("/dashboard/admin");
-			} catch (err) {
-				localStorage.removeItem("token");
-				router.push("/login");
-			} finally {
-				setLoading(false);
-			}
-		};
-		fetchUser();
-	}, []);
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const { data } = await api.getCurrentUser();
+        if (data.role === "student") router.replace("/dashboard/student");
+        if (data.role === "teacher") router.replace("/dashboard/teacher");
+        if (data.role === "admin") router.replace("/dashboard/admin");
+      } catch (err) {
+        localStorage.removeItem("token");
+        router.replace("/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, [router]);
 
-	return (
-		<Box display="flex" justifyContent="center" alignItems="center" height="100vh" className="p-4 bg-gradient-to-b from-primary to-secondary">
-			{loading ? (
-				<CircularProgress />
-			) : (
-				<Typography variant="h6" className="text-white">در حال انتقال به داشبورد...</Typography>
-			)}
-		</Box>
-	);
+  return (
+    <div className="h-screen w-full flex items-center justify-center ">
+      <div className="text-center space-y-4">
+        {loading ? (
+          <CircularProgress size="lg" color="primary" aria-label="Loading..." />
+        ) : (
+          <p className="text-lg font-bold text-neutral-600 dark:text-neutral-300">
+            در حال انتقال به داشبورد...
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/";
+const API_URL = "http://localhost:3001/";
 
 const apiClient = axios.create({
 	baseURL: API_URL,
@@ -66,4 +66,6 @@ export const api = {
 		apiClient.post("/users/upload", formData, {
 			headers: { "Content-Type": "multipart/form-data" },
 		}),
+	updateUser: (id: number, data: { username?: string; password?: string; role?: string }) =>
+		apiClient.patch(`/users/${id}`, data),
 };
