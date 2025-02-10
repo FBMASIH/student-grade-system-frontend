@@ -33,30 +33,47 @@ apiClient.interceptors.response.use(
 );
 
 export const api = {
+	// Auth APIs
 	login: (username: string, password: string) =>
 		apiClient.post("/auth/login", { username, password }),
-
 	registerUser: (username: string, password: string) =>
 		apiClient.post("/auth/register", { username, password }),
-
 	getCurrentUser: () => apiClient.get("/users/me"),
 
-	getStudentGrades: (studentId: number) =>
-		apiClient.get(`/grades/student/${studentId}`),
+	// Course Management
+	getAllCourses: (page: number = 1, limit: number = 10) =>
+		apiClient.get(`/courses?page=${page}&limit=${limit}`),
+	getCourseById: (id: number) => apiClient.get(`/courses/${id}`),
+	getStudentCourses: (studentId: number) =>
+		apiClient.get(`/courses/student/${studentId}`),
+	getProfessorCourses: (professorId: number) =>
+		apiClient.get(`/courses/professor/${professorId}`),
 
-	submitObjection: (gradeId: number, reason: string) =>
-		apiClient.post("/objections/submit", { gradeId, reason }),
+	// Enrollment Management
+	createEnrollment: (studentId: number, groupId: number) =>
+		apiClient.post("/enrollments", { studentId, groupId }),
+	updateEnrollmentGrade: (id: number, score: number) =>
+		apiClient.patch(`/enrollments/${id}/grade`, { score }),
+	getStudentEnrollments: (studentId: number) =>
+		apiClient.get(`/enrollments/student/${studentId}`),
+	getGroupEnrollments: (groupId: number) =>
+		apiClient.get(`/enrollments/group/${groupId}`),
 
-	getObjections: () => apiClient.get("/objections"),
-
-	resolveObjection: (id: number) =>
-		apiClient.patch(`/objections/resolve/${id}`),
-
-	assignGrade: (studentId: number, subject: string, score: number) =>
-		apiClient.post("/grades/assign", { studentId, subject, score }),
-
-	// مدیریت کاربران توسط مدیر کل:
-	getUsers: () => apiClient.get("/users"),
+	// User Management
+	getUsers: (
+		page: number = 1,
+		limit: number = 10,
+		search?: string,
+		role?: string
+	) =>
+		apiClient.get("/users", {
+			params: {
+				page,
+				limit,
+				search,
+				role,
+			},
+		}),
 	updateUserRole: (id: number, role: string) =>
 		apiClient.patch(`/users/${id}/role`, { role }),
 	deleteUser: (id: number) => apiClient.delete(`/users/${id}`),
@@ -66,6 +83,8 @@ export const api = {
 		apiClient.post("/users/upload", formData, {
 			headers: { "Content-Type": "multipart/form-data" },
 		}),
-	updateUser: (id: number, data: { username?: string; password?: string; role?: string }) =>
-		apiClient.patch(`/users/${id}`, data),
+	updateUser: (
+		id: number,
+		data: { username?: string; password?: string; role?: string }
+	) => apiClient.patch(`/users/${id}`, data),
 };

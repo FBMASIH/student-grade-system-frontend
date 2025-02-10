@@ -17,17 +17,21 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-interface Grade {
+interface Enrollment {
 	id: number;
-	subject: string;
-	score: number;
+	group: {
+		id: number;
+		name: string;
+		course: { name: string };
+		professor: { name: string };
+	};
+	score?: number;
 }
 
 export default function StudentDashboard() {
 	const { token } = useAuthStore();
-	const [grades, setGrades] = useState<Grade[]>([]);
-	const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null);
-	const [objection, setObjection] = useState("");
+	const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+	const [courses, setCourses] = useState([]);
 	const [error, setError] = useState("");
 	const router = useRouter();
 
@@ -36,19 +40,18 @@ export default function StudentDashboard() {
 			router.push("/login");
 			return;
 		}
-		api
-			.getStudentGrades(1)
-			.then((res) => setGrades(res.data))
-			.catch((err) => setError(err.message));
+		loadStudentData();
 	}, [token, router]);
 
-	const handleSubmitObjection = async () => {
-		if (!selectedGrade || !objection) return;
+	const loadStudentData = async () => {
 		try {
-			await api.submitObjection(selectedGrade.id, objection);
-			alert("اعتراض شما با موفقیت ثبت شد.");
-			setObjection("");
-			setSelectedGrade(null);
+			const [enrollmentsRes, coursesRes] = await Promise.all([
+				api.getStudentEnrollments(1), // Replace with actual student ID
+				api.getStudentCourses(1), // Replace with actual student ID
+			]);
+
+			setEnrollments(enrollmentsRes.data);
+			setCourses(coursesRes.data);
 		} catch (err: any) {
 			setError(err.message);
 		}
@@ -81,52 +84,24 @@ export default function StudentDashboard() {
 
 			<Card>
 				<CardBody>
-					<Table aria-label="نمرات دانشجو">
+					<Table aria-label="دوره‌های دانشجو">
 						<TableHeader>
-							<TableColumn>درس</TableColumn>
+							<TableColumn>دوره</TableColumn>
+							<TableColumn>استاد</TableColumn>
 							<TableColumn>نمره</TableColumn>
-							<TableColumn>عملیات</TableColumn>
 						</TableHeader>
 						<TableBody>
-							{grades.map((grade) => (
-								<TableRow key={grade.id}>
-									<TableCell>{grade.subject}</TableCell>
-									<TableCell>{grade.score}</TableCell>
-									<TableCell>
-										<Button
-											color="danger"
-											size="sm"
-											onClick={() => setSelectedGrade(grade)}>
-											ثبت اعتراض
-										</Button>
-									</TableCell>
+							{enrollments.map((enrollment) => (
+								<TableRow key={enrollment.id}>
+									<TableCell>{enrollment.group.course.name}</TableCell>
+									<TableCell>{enrollment.group.professor.name}</TableCell>
+									<TableCell>{enrollment.score ?? "N/A"}</TableCell>
 								</TableRow>
 							))}
 						</TableBody>
 					</Table>
 				</CardBody>
 			</Card>
-
-			{selectedGrade && (
-				<Card>
-					<CardBody className="space-y-4">
-						<h3 className="text-xl font-bold text-primary-600">
-							اعتراض به درس: {selectedGrade.subject}
-						</h3>
-						<Textarea
-							placeholder="دلیل اعتراض را وارد کنید..."
-							value={objection}
-							onChange={(e) => setObjection(e.target.value)}
-						/>
-						<Button
-							color="primary"
-							className="w-full"
-							onClick={handleSubmitObjection}>
-							ثبت اعتراض
-						</Button>
-					</CardBody>
-				</Card>
-			)}
 		</div>
 	);
 }

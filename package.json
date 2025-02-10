@@ -26,6 +26,7 @@
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
 		"shadcn-ui": "^0.9.4",
+		"sonner": "^1.7.4",
 		"switch": "^0.0.0",
 		"zustand": "^4.3.9"
 	},
