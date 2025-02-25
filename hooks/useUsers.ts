@@ -1,8 +1,8 @@
 import { api } from "@/lib/api";
-import { User, UserFilters } from "@/types/user";
+import { User, UserFilters } from "@/lib/types/common";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-interface UseUsersOptions extends UserFilters {
+interface UseUsersOptions extends Partial<UserFilters> {
 	initialData: User[];
 }
 
@@ -14,7 +14,12 @@ export const useUsers = ({
 	const [totalPages, setTotalPages] = useState(0);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [filters, setFilters] = useState<UserFilters>(initialFilters);
+	const [filters, setFilters] = useState<UserFilters>({
+		page: initialFilters.page || 1,
+		limit: initialFilters.limit || 10,
+		search: initialFilters.search || "",
+		role: initialFilters.role || "",
+	});
 	const abortController = useRef<AbortController | null>(null);
 
 	const notifyUserChange = useCallback((updatedUsers: User[]) => {
@@ -66,9 +71,9 @@ export const useUsers = ({
 					currentFilters.role
 				);
 
-				if (response.data && Array.isArray(response.data.users)) {
-					setUsers(response.data.users);
-					setTotalPages(response.data.totalPages || 1);
+				if (response.data && Array.isArray(response.data.items)) {
+					setUsers(response.data.items);
+					setTotalPages(response.data.meta.totalPages || 1);
 				}
 			} catch (err) {
 				if ((err as Error).name !== "AbortError") {
@@ -118,7 +123,7 @@ export const useUsers = ({
 	const createUser = useCallback(
 		async (username: string, password: string, role: string) => {
 			try {
-				await api.createUserManual(username, password, role);
+				await api.createUserManual(username, password, "", "", role);
 				await fetchUsers(filters); // Refresh with current filters
 				return true;
 			} catch (err) {

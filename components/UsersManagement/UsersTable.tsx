@@ -1,11 +1,20 @@
 "use client";
 
 import { useUsers } from "@/hooks/useUsers";
-import { User } from "@/types/user";
+import { api } from "@/lib/api";
+import { User, UserFilters } from "@/lib/types/common";
 import {
 	Button,
+	Checkbox,
+	Chip,
 	Input,
+	Modal,
+	ModalBody,
+	ModalContent,
+	ModalFooter,
+	ModalHeader,
 	Pagination,
+	Progress,
 	Select,
 	SelectItem,
 	Table,
@@ -15,15 +24,76 @@ import {
 	TableHeader,
 	TableRow,
 } from "@nextui-org/react";
-import { Edit, Plus, Search, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { defaultStyles, roleConfig } from "./styles";
+import {
+	Edit,
+	GraduationCap,
+	Plus,
+	School,
+	Search,
+	ShieldCheck,
+	Trash2,
+} from "lucide-react";
+import {
+	AwaitedReactNode,
+	JSXElementConstructor,
+	ReactElement,
+	ReactNode,
+	ReactPortal,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
+import { toast } from "sonner";
+import { defaultStyles } from "./styles";
+
+interface RoleConfig {
+	icon: React.ComponentType<any>;
+	label: string;
+}
+
+const roleConfig: Record<"admin" | "teacher" | "student", RoleConfig> = {
+	admin: {
+		icon: ShieldCheck,
+		label: "مدیر سیستم",
+	},
+	teacher: {
+		icon: School,
+		label: "استاد",
+	},
+	student: {
+		icon: GraduationCap,
+		label: "دانشجو",
+	},
+};
+
+interface ExcelUploadResponse {
+	users: Array<{
+		id: number;
+		username: string;
+		firstName: string;
+		lastName: string;
+	}>;
+	errors: string[];
+	duplicates: Array<{
+		username: string;
+		firstName: string;
+		lastName: string;
+		message: string;
+	}>;
+	reactivated: Array<{
+		username: string;
+		firstName: string;
+		lastName: string;
+	}>;
+}
 
 interface UsersTableProps {
 	initialData: User[];
 	onAddUser: () => void;
 	onEditUser: (user: User) => void;
 	onDeleteUser: (id: number) => Promise<void>;
+	onDeleteMultipleUsers: (ids: number[]) => Promise<void>;
 	styles?: typeof defaultStyles;
 }
 
@@ -32,29 +102,113 @@ export function UsersTable({
 	onAddUser,
 	onEditUser,
 	onDeleteUser,
+	onDeleteMultipleUsers,
 	styles = defaultStyles,
 }: UsersTableProps) {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedRole, setSelectedRole] = useState<
 		"" | "admin" | "teacher" | "student"
 	>("");
+	const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
+	const [selectAll, setSelectAll] = useState(false);
 	const searchTimeout = useRef<NodeJS.Timeout>();
 
-	const { users, totalPages, loading, error, filters, fetchUsers } = useUsers({
+	const {
+		users,
+		totalPages,
+		loading,
+		error: fetchError,
+		filters,
+		fetchUsers,
+	} = useUsers({
 		page: 1,
 		limit: 10,
 		search: "",
 		initialData,
 	});
 
-	// Only fetch when user explicitly searches or filters
+	const [uploadProgress, setUploadProgress] = useState(0);
+	const [error, setError] = useState<string | null>(null);
+	const [isUploading, setIsUploading] = useState(false);
+	const [uploadResponse, setUploadResponse] =
+		useState<ExcelUploadResponse | null>(null);
+	const [isUploadExcelOpen, setIsUploadExcelOpen] = useState(false);
+
+	const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		const formData = new FormData();
+		formData.append("file", file);
+
+		setIsUploading(true);
+		setUploadProgress(0);
+
+		try {
+			const response = await api.uploadUsersExcel(formData);
+			setUploadResponse(response.data);
+
+			// Show success messages
+			if (response.data.reactivated.length > 0) {
+				toast.success(
+					`${response.data.reactivated.length} کاربر با موفقیت فعال شد`
+				);
+			}
+
+			// Show warnings for duplicates
+			if (response.data.duplicates.length > 0) {
+				response.data.duplicates.forEach(
+					(duplicate: { username: any; message: any }) => {
+						toast.warning(`${duplicate.username}: ${duplicate.message}`);
+					}
+				);
+			}
+
+			// Show errors if any
+			if (response.data.errors.length > 0) {
+				response.data.errors.forEach(
+					(
+						error:
+							| string
+							| number
+							| bigint
+							| boolean
+							| ReactElement<any, string | JSXElementConstructor<any>>
+							| Iterable<ReactNode>
+							| ReactPortal
+							| Promise<AwaitedReactNode>
+							| (() => React.ReactNode)
+							| null
+							| undefined
+					) => {
+						toast.error(error);
+					}
+				);
+			}
+
+			// Refresh users list if any changes were made
+			if (
+				response.data.reactivated.length > 0 ||
+				response.data.users.length > 0
+			) {
+				fetchUsers(filters);
+			}
+		} catch (error: unknown) {
+			if (error instanceof Error) {
+				setError(error.message);
+				toast.error(error.message);
+			}
+		} finally {
+			setIsUploading(false);
+		}
+	};
+
 	useEffect(() => {
 		if (searchTimeout.current) {
 			clearTimeout(searchTimeout.current);
 		}
 
 		searchTimeout.current = setTimeout(() => {
-			// Only include search and role in filters if they have values
 			const newFilters: Partial<UserFilters> = {
 				page: 1,
 			};
@@ -101,6 +255,31 @@ export function UsersTable({
 		[onDeleteUser]
 	);
 
+	const handleUserSelection = (userId: number) => {
+		setSelectedUsers((prevSelected) =>
+			prevSelected.includes(userId)
+				? prevSelected.filter((id) => id !== userId)
+				: [...prevSelected, userId]
+		);
+	};
+
+	const handleSelectAll = () => {
+		if (selectAll) {
+			setSelectedUsers([]);
+		} else {
+			setSelectedUsers(users.map((user) => user.id));
+		}
+		setSelectAll(!selectAll);
+	};
+
+	const handleDeleteSelectedUsers = async () => {
+		if (window.confirm("آیا از حذف این کاربران اطمینان دارید؟")) {
+			await onDeleteMultipleUsers(selectedUsers);
+			setSelectedUsers([]);
+			setSelectAll(false);
+		}
+	};
+
 	const tableItems = useCallback(() => {
 		if (!Array.isArray(users) || users.length === 0) {
 			return [];
@@ -115,9 +294,10 @@ export function UsersTable({
 			),
 			username: user.username,
 			role: (() => {
-				const role = roleConfig[user.role];
+				const role = roleConfig[user.role as "admin" | "teacher" | "student"];
 				const RoleIcon = role.icon;
-				const badgeStyle = styles.badgeStyles[user.role];
+				const badgeStyle =
+					styles.badgeStyles[user.role as "admin" | "teacher" | "student"];
 				return (
 					<div className={badgeStyle.base}>
 						<RoleIcon className={badgeStyle.icon} />
@@ -142,7 +322,14 @@ export function UsersTable({
 				</div>
 			),
 		}));
-	}, [users, onEditUser, handleDeleteUser, styles]);
+	}, [
+		users,
+		onEditUser,
+		handleDeleteUser,
+		handleUserSelection,
+		selectedUsers,
+		styles,
+	]);
 
 	if (loading && !users.length) {
 		return (
@@ -202,12 +389,21 @@ export function UsersTable({
 						}
 					</Select>
 				</div>
-				<Button
-					className={`${styles.buttonStyles.primary} h-12 px-6`}
-					onClick={onAddUser}
-					startContent={<Plus className="w-4 h-4" />}>
-					افزودن کاربر
-				</Button>
+				<div className="flex gap-2">
+					<Button
+						className={`${styles.buttonStyles.primary} h-12 px-6`}
+						onClick={onAddUser}
+						startContent={<Plus className="w-4 h-4" />}>
+						افزودن کاربر
+					</Button>
+					<Button
+						className={`${styles.buttonStyles.danger} h-12 px-6`}
+						onClick={handleDeleteSelectedUsers}
+						isDisabled={selectedUsers.length === 0}
+						startContent={<Trash2 className="w-4 h-4" />}>
+						حذف کاربران انتخاب شده
+					</Button>
+				</div>
 			</div>
 
 			<Table
@@ -218,13 +414,16 @@ export function UsersTable({
 					td: styles.td,
 				}}>
 				<TableHeader>
+					<TableColumn>
+						<Checkbox isSelected={selectAll} onValueChange={handleSelectAll} />
+					</TableColumn>
 					<TableColumn>شناسه</TableColumn>
 					<TableColumn>نام کاربری</TableColumn>
 					<TableColumn>نقش</TableColumn>
 					<TableColumn>عملیات</TableColumn>
 				</TableHeader>
 				<TableBody
-					items={tableItems() || []} // Ensure we always have an array
+					items={tableItems() || []}
 					emptyContent="هیچ کاربری یافت نشد"
 					loadingContent={
 						<div className="flex justify-center py-8">
@@ -234,6 +433,12 @@ export function UsersTable({
 					loadingState={loading ? "loading" : "idle"}>
 					{(item) => (
 						<TableRow key={item.key}>
+							<TableCell>
+								<Checkbox
+									isSelected={selectedUsers.includes(item.key)}
+									onValueChange={() => handleUserSelection(item.key)}
+								/>
+							</TableCell>
 							<TableCell>{item.id}</TableCell>
 							<TableCell>{item.username}</TableCell>
 							<TableCell>{item.role}</TableCell>
@@ -251,6 +456,143 @@ export function UsersTable({
 					className="flex justify-center"
 				/>
 			)}
+
+			<Modal
+				isOpen={isUploadExcelOpen}
+				onClose={() => {
+					setIsUploadExcelOpen(false);
+					setUploadResponse(null);
+					setError(null);
+				}}
+				size="3xl">
+				<ModalContent>
+					{(onClose) => (
+						<>
+							<ModalHeader className="flex flex-col gap-1">
+								<h3 className="text-lg font-bold">آپلود فایل اکسل</h3>
+								<p className="text-sm text-neutral-500">
+									{uploadResponse
+										? "نتایج بررسی فایل"
+										: "لطفا فایل اکسل حاوی اطلاعات کاربران را انتخاب کنید"}
+								</p>
+							</ModalHeader>
+							<ModalBody>
+								<div className="space-y-4">
+									{!uploadResponse && (
+										<div className="flex flex-col gap-4">
+											<Input
+												type="file"
+												accept=".xlsx,.xls,.csv"
+												onChange={handleFileUpload}
+												disabled={isUploading}
+												className="mb-4"
+											/>
+											{isUploading && (
+												<Progress
+													value={uploadProgress}
+													color="primary"
+													label="در حال آپلود..."
+													showValueLabel={true}
+													className="my-4"
+												/>
+											)}
+										</div>
+									)}
+
+									{uploadResponse && (
+										<div className="space-y-6">
+											{uploadResponse.duplicates.length > 0 && (
+												<div>
+													<h4 className="text-lg font-bold text-warning mb-2">
+														کاربران تکراری
+													</h4>
+													<Table aria-label="کاربران تکراری">
+														<TableHeader>
+															<TableColumn>نام کاربری</TableColumn>
+															<TableColumn>نام</TableColumn>
+															<TableColumn>نام خانوادگی</TableColumn>
+															<TableColumn>وضعیت</TableColumn>
+														</TableHeader>
+														<TableBody>
+															{uploadResponse.duplicates.map((user, index) => (
+																<TableRow key={index}>
+																	<TableCell>{user.username}</TableCell>
+																	<TableCell>{user.firstName}</TableCell>
+																	<TableCell>{user.lastName}</TableCell>
+																	<TableCell>
+																		<Chip
+																			color="warning"
+																			variant="flat"
+																			size="sm">
+																			{user.message}
+																		</Chip>
+																	</TableCell>
+																</TableRow>
+															))}
+														</TableBody>
+													</Table>
+												</div>
+											)}
+
+											{uploadResponse.reactivated.length > 0 && (
+												<div>
+													<h4 className="text-lg font-bold text-success mb-2">
+														کاربران فعال شده
+													</h4>
+													<Table aria-label="کاربران فعال شده">
+														<TableHeader>
+															<TableColumn>نام کاربری</TableColumn>
+															<TableColumn>نام</TableColumn>
+															<TableColumn>نام خانوادگی</TableColumn>
+														</TableHeader>
+														<TableBody>
+															{uploadResponse.reactivated.map((user, index) => (
+																<TableRow key={index}>
+																	<TableCell>{user.username}</TableCell>
+																	<TableCell>{user.firstName}</TableCell>
+																	<TableCell>{user.lastName}</TableCell>
+																</TableRow>
+															))}
+														</TableBody>
+													</Table>
+												</div>
+											)}
+
+											{uploadResponse.errors.length > 0 && (
+												<div className="bg-danger-50 p-4 rounded-lg">
+													<h4 className="text-lg font-bold text-danger mb-2">
+														خطاها
+													</h4>
+													<ul className="list-disc list-inside text-danger">
+														{uploadResponse.errors.map((error, index) => (
+															<li key={index}>{error}</li>
+														))}
+													</ul>
+												</div>
+											)}
+										</div>
+									)}
+								</div>
+							</ModalBody>
+							<ModalFooter>
+								<Button color="danger" variant="light" onPress={onClose}>
+									بستن
+								</Button>
+								{uploadResponse && (
+									<Button
+										color="success"
+										onPress={() => {
+											fetchUsers(filters);
+											onClose();
+										}}>
+										تایید و به روزرسانی
+									</Button>
+								)}
+							</ModalFooter>
+						</>
+					)}
+				</ModalContent>
+			</Modal>
 		</div>
 	);
 }
