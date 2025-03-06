@@ -89,8 +89,6 @@ export default function CoursesManagement() {
 			await api.createCourse({
 				name: formData.name,
 				code: formData.code,
-				units: parseInt(formData.units),
-				department: formData.department || undefined,
 			});
 			onClose();
 			fetchCourses(page);
@@ -152,7 +150,7 @@ export default function CoursesManagement() {
 								<TableHeader>
 									<TableColumn>کد درس</TableColumn>
 									<TableColumn>نام درس</TableColumn>
-									<TableColumn>تعداد واحد</TableColumn>
+									<TableColumn>واحد</TableColumn>
 									<TableColumn>دانشکده</TableColumn>
 									<TableColumn>تعداد گروه‌ها</TableColumn>
 									<TableColumn>عملیات</TableColumn>
@@ -233,23 +231,6 @@ export default function CoursesManagement() {
 										setFormData({ ...formData, code: e.target.value })
 									}
 								/>
-								<Input
-									label="تعداد واحد"
-									type="number"
-									placeholder="مثال: 3"
-									value={formData.units}
-									onChange={(e) =>
-										setFormData({ ...formData, units: e.target.value })
-									}
-								/>
-								<Input
-									label="دانشکده"
-									placeholder="مثال: مهندسی کامپیوتر"
-									value={formData.department}
-									onChange={(e) =>
-										setFormData({ ...formData, department: e.target.value })
-									}
-								/>
 							</ModalBody>
 							<ModalFooter>
 								<Button color="danger" variant="light" onPress={onClose}>
@@ -258,9 +239,7 @@ export default function CoursesManagement() {
 								<Button
 									color="primary"
 									onPress={handleCreateCourse}
-									isDisabled={
-										!formData.name || !formData.code || !formData.units
-									}>
+									isDisabled={!formData.name || !formData.code}>
 									افزودن درس
 								</Button>
 							</ModalFooter>

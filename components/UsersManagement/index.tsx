@@ -3,9 +3,20 @@
 import { api } from "@/lib/api";
 import { tableStyles } from "@/lib/tableStyles";
 import { Button, useDisclosure } from "@nextui-org/react";
-import { AlertCircle } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { AlertCircle, Upload } from "lucide-react";
+import {
+	AwaitedReactNode,
+	JSXElementConstructor,
+	ReactElement,
+	ReactNode,
+	ReactPortal,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { EditUserModal } from "./EditUserModal"; // Import the new modal
+import { UploadExcelModal } from "./UploadExcelModal"; // Import the new modal
 import { UserModal } from "./UserModal";
 import { UsersTable } from "./UsersTable";
 
@@ -15,6 +26,20 @@ import { toast } from "sonner";
 interface UsersManagementProps {
 	initialData: User[];
 	onUserChange?: () => void;
+}
+
+interface RegisteredUser {
+	id: number;
+	username: string;
+	firstName: string;
+	lastName: string;
+}
+
+interface DuplicateUser {
+	username: string;
+	firstName: string;
+	lastName: string;
+	message: string;
 }
 
 export function UsersManagement({
@@ -36,6 +61,16 @@ export function UsersManagement({
 	const [updateFirstName, setUpdateFirstName] = useState("");
 	const [updateLastName, setUpdateLastName] = useState("");
 	const [localUsers, setLocalUsers] = useState<User[]>(initialData);
+
+	const {
+		isOpen: isUploadExcelOpen,
+		onOpen: onUploadExcelOpen,
+		onClose: onUploadExcelClose,
+	} = useDisclosure();
+	const [isUploading, setIsUploading] = useState(false);
+	const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
+	const [duplicateUsers, setDuplicateUsers] = useState<DuplicateUser[]>([]);
+	const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
 	const refreshTable = useCallback(() => {
 		api.getUsers().then((res) => {
@@ -153,6 +188,69 @@ export function UsersManagement({
 		}
 	};
 
+	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		setIsUploading(true);
+		setDuplicateUsers([]);
+		setUploadErrors([]);
+
+		const formData = new FormData();
+		formData.append("file", file);
+
+		try {
+			const { data } = await api.uploadUsersExcel(formData);
+			console.log("Upload response:", data);
+
+			const validUsers = [...(data.users || []), ...(data.reactivated || [])];
+			setRegisteredUsers(validUsers);
+
+			setDuplicateUsers(data.duplicates || []);
+			setUploadErrors(data.errors || []);
+
+			if (data.users?.length > 0) {
+				toast.success(`${data.users.length} کاربر جدید با موفقیت ثبت شد`);
+			}
+			if (data.reactivated?.length > 0) {
+				toast.success(`${data.reactivated.length} کاربر مجدداً فعال شد`);
+			}
+
+			data.duplicates?.forEach(
+				(d: { firstName: any; lastName: any; username: any; message: any }) => {
+					toast.warning(
+						`${d.firstName} ${d.lastName} (${d.username}): ${d.message}`
+					);
+				}
+			);
+
+			data.errors?.forEach(
+				(
+					error:
+						| string
+						| number
+						| bigint
+						| boolean
+						| ReactElement<any, string | JSXElementConstructor<any>>
+						| Iterable<ReactNode>
+						| ReactPortal
+						| Promise<AwaitedReactNode>
+						| (() => React.ReactNode)
+						| null
+						| undefined
+				) => {
+					toast.error(error);
+				}
+			);
+		} catch (err: any) {
+			console.error("Upload error:", err);
+			toast.error(err.response?.data?.message || "خطا در آپلود فایل");
+			setRegisteredUsers([]);
+		} finally {
+			setIsUploading(false);
+		}
+	};
+
 	return (
 		<div className="space-y-4">
 			<UsersTable
@@ -182,6 +280,23 @@ export function UsersManagement({
 				firstName={updateFirstName}
 				lastName={updateLastName}
 			/>
+			<div className="flex space-x-2">
+				<Button
+					color="primary"
+					variant="light"
+					onPress={onOpen}
+					className="font-medium">
+					افزودن کاربر
+				</Button>
+				<Button
+					color="primary"
+					variant="light"
+					onPress={onUploadExcelOpen}
+					className="font-medium">
+					<Upload className="w-5 h-5" />
+					آپلود اکسل
+				</Button>
+			</div>
 			<Button
 				color="danger"
 				variant="light"
@@ -195,6 +310,10 @@ export function UsersManagement({
 					<p>{error}</p>
 				</div>
 			)}
+			<UploadExcelModal
+				isOpen={isUploadExcelOpen}
+				onClose={onUploadExcelClose}
+			/>
 		</div>
 	);
 }

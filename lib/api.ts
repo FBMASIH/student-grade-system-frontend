@@ -1,5 +1,13 @@
 import axios from "axios";
 import { PaginatedResponse, User } from "./types/common";
+import {
+	BulkScoreResponse,
+	BulkScoreUpdate,
+	ScoreResponse,
+	Student,
+	StudentEnrollment,
+} from "./types/enrollment";
+import { StudentObjection } from "./types/objection";
 
 const API_URL = "http://localhost:3001/";
 
@@ -33,6 +41,31 @@ apiClient.interceptors.response.use(
 	}
 );
 
+interface ObjectionResponse {
+	id: number;
+	course: {
+		id: number;
+		name: string;
+	};
+	student: {
+		id: number;
+		name: string;
+	};
+	reason: string;
+	resolved: boolean;
+	response: string | null;
+}
+
+interface Course {
+	id: number;
+	name: string;
+	code: string;
+	subject: string;
+	groups: Array<{
+		// ...existing group properties...
+	}>;
+}
+
 export const api = {
 	// Auth APIs
 	login: (username: string, password: string) =>
@@ -56,19 +89,13 @@ export const api = {
 		apiClient.get<PaginatedResponse>(`/courses`, {
 			params: { page, limit, search },
 		}),
-	createCourse: (data: {
-		name: string;
-		code: string;
-		units: number;
-		department?: string;
-	}) => apiClient.post("/courses", data),
+	createCourse: (data: { name: string; code: string }) =>
+		apiClient.post("/courses", data),
 	updateCourse: (
 		id: number,
 		data: {
 			name?: string;
 			code?: string;
-			units?: number;
-			department?: string;
 		}
 	) => apiClient.patch(`/courses/${id}`, data),
 	deleteCourse: (id: number) => apiClient.delete(`/courses/${id}`),
@@ -77,6 +104,17 @@ export const api = {
 		apiClient.get(`/courses/student/${studentId}`),
 	getProfessorCourses: (professorId: number) =>
 		apiClient.get(`/courses/professor/${professorId}`),
+	getCourseStudents: (courseId: number) =>
+		apiClient.get<
+			Array<{
+				id: number;
+				username: string;
+				firstName: string;
+				lastName: string;
+				groupNumber: number;
+				score: number | null;
+			}>
+		>(`/courses/${courseId}/students`),
 
 	// Course Groups Management
 	getAllCourseGroups: (page: number = 1, limit: number = 10, search?: string) =>
@@ -90,6 +128,7 @@ export const api = {
 		id: number,
 		data: {
 			groupNumber?: number;
+			capacity?: number;
 			courseId?: number;
 			professorId?: number;
 		}
@@ -97,12 +136,15 @@ export const api = {
 	deleteCourseGroup: (id: number) => apiClient.delete(`/course-groups/${id}`),
 	addStudentsToGroup: (groupId: number, studentIds: number[]) =>
 		apiClient.post(`/course-groups/${groupId}/students`, { studentIds }),
-	addStudentsToGroupByUsername: (groupId: number, usernames: string[]) =>
-		apiClient.post(`/enrollments/groups/${groupId}/students`, { usernames }),
 	getStudentsInGroup: (groupId: number) =>
 		apiClient.get<User[]>(`/course-groups/${groupId}/students`),
 	getGroupStudentsStatus: (groupId: number) =>
 		apiClient.get(`/course-groups/${groupId}/students-status`),
+	addStudentsToGroupByUsername: (groupId: number, usernames: string[]) =>
+		apiClient.post<{
+			successful: Array<{ username: string }>;
+			errors: Array<{ username: string; reason: string }>;
+		}>(`/course-groups/${groupId}/students/bulk`, { usernames }),
 
 	// Enrollment Management
 	getAllEnrollments: (page: number = 1, limit: number = 10, search?: string) =>
@@ -111,13 +153,50 @@ export const api = {
 		}),
 	createEnrollment: (studentId: number, groupId: number) =>
 		apiClient.post("/enrollments", { studentId, groupId }),
-	updateEnrollmentGrade: (id: number, score: number) =>
-		apiClient.patch(`/enrollments/${id}/grade`, { score }),
-	getStudentEnrollments: (studentId: number) =>
-		apiClient.get(`/enrollments/student/${studentId}`),
-	getGroupEnrollments: (groupId: number) =>
-		apiClient.get(`/enrollments/group/${groupId}`),
 	deleteEnrollment: (id: number) => apiClient.delete(`/enrollments/${id}`),
+
+	// Unified endpoints for score management
+	getStudentEnrollments: (studentId: string | number) =>
+		apiClient.get<{
+			enrollments: StudentEnrollment[];
+		}>(`/api/enrollments/${studentId}/details`),
+
+	updateStudentScore: (enrollmentId: number, score: number) =>
+		apiClient.patch<ScoreResponse>(`/api/enrollments/${enrollmentId}/score`, {
+			score, // 0-100
+		}),
+
+	searchStudent: (query: string) =>
+		apiClient.get<Student[]>(`/api/students`, {
+			params: { q: query },
+		}),
+
+	// Bulk score operations
+	bulkUpdateScores: (scores: BulkScoreUpdate[]) =>
+		apiClient.post<BulkScoreResponse>("/api/scores/bulk", { scores }),
+
+	// Score import/export
+	exportScores: (filters?: {
+		courseId?: number;
+		groupId?: number;
+		studentId?: number;
+	}) =>
+		apiClient.get("/api/scores/export", {
+			params: filters,
+			responseType: "blob",
+		}),
+
+	importScores: (formData: FormData) =>
+		apiClient.post<{
+			successful: number;
+			failed: number;
+			errors: Array<{
+				row: number;
+				message: string;
+			}>;
+		}>("/api/scores/import", formData, {
+			headers: { "Content-Type": "multipart/form-data" },
+		}),
 
 	// User Management
 	getUsers: (
@@ -215,10 +294,23 @@ export const api = {
 		return apiClient.get(`/tickets/${ticketId}/comments`);
 	},
 
-	// Objection Management
-	getTeacherObjections: (teacherId: number) =>
-		apiClient.get(`/objections/teacher/${teacherId}`),
+	submitObjection: (data: {
+		courseId: number;
+		studentId: number;
+		reason: string;
+	}) => apiClient.post<ObjectionResponse>("/objections/submit", data),
 
-	respondToObjection: (objectionId: number, response: string) =>
-		apiClient.post(`/objections/${objectionId}/respond`, { response }),
+	getStudentObjections: (studentId: number) =>
+		apiClient.get<StudentObjection[]>(`/objections/students/${studentId}`),
+
+	getTeacherObjections: (teacherId: number) =>
+		apiClient.get<ObjectionResponse[]>(`/objections/teacher/${teacherId}`),
+
+	resolveObjection: (objectionId: number, data: { resolution: string }) =>
+		apiClient.post<{ message: string }>(
+			`/objections/${objectionId}/resolve`,
+			data
+		),
+	updateScore: (enrollmentId: number, score: number) =>
+		apiClient.put(`/enrollments/${enrollmentId}/score`, { score }),
 };

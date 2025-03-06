@@ -1,12 +1,19 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+
+interface User {
+	id: number;
+	role: string;
+	username?: string;
+	firstName?: string;
+	lastName?: string;
+}
 
 interface AuthState {
 	token: string | null;
-	user: { id: string; role: string } | null;
-	role?: string;
-	setToken: (token: string | null) => void;
-	setUser: (user: { id: string; role: string }) => void;
+	user: User | null;
+	setToken: (token: string) => void;
+	setUser: (user: User) => void;
 	setRole: (role: string) => void;
 	logout: () => void;
 }
@@ -14,28 +21,30 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
 	persist(
 		(set) => ({
-			token: null,
+			token: null, // Don't read from localStorage here
 			user: null,
-			setRole: (role: string) => {
-				if (role) {
-					localStorage.setItem("role", role);
-				}
-				set({ role });
-			},
 			setToken: (token) => {
-				if (token) {
+				if (typeof window !== "undefined") {
 					localStorage.setItem("token", token);
 				}
 				set({ token });
 			},
 			setUser: (user) => set({ user }),
+			setRole: (role) =>
+				set((state) => ({
+					user: state.user ? { ...state.user, role } : null,
+				})),
 			logout: () => {
-				localStorage.removeItem("token");
+				if (typeof window !== "undefined") {
+					localStorage.removeItem("token");
+				}
 				set({ token: null, user: null });
 			},
 		}),
 		{
 			name: "auth-storage",
+			storage: createJSONStorage(() => localStorage),
+			skipHydration: true, // Add this line
 		}
 	)
 );

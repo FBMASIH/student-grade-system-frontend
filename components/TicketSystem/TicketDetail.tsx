@@ -211,9 +211,9 @@ export function TicketDetail({ ticketId }: { ticketId: number }) {
 										base: "w-10 h-10 transition-transform hover:scale-105",
 										fallback: "bg-primary/10 text-primary font-semibold",
 									}}
-									name={useAuthStore.getState().user?.id}
+									name={useAuthStore.getState().user?.id?.toString()}
 									fallback={
-										<span>{getInitials(useAuthStore.getState().user?.id)}</span>
+										<span>{getInitials(useAuthStore.getState().user?.id?.toString())}</span>
 									}
 								/>
 								<div className="flex-1">

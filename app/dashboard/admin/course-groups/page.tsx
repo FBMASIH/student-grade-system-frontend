@@ -103,6 +103,11 @@ interface ExcelUploadResponse {
 	reactivated: RegisteredUser[];
 }
 
+interface BulkEnrollmentResponse {
+	successful: Array<{ username: string }>;
+	errors: Array<{ username: string; reason: string }>;
+}
+
 export default function CourseGroupsManagement() {
 	const [courseGroups, setCourseGroups] = useState<CourseGroup[]>([]);
 	const [page, setPage] = useState(1);
@@ -377,25 +382,28 @@ export default function CourseGroupsManagement() {
 				usernames
 			);
 
-			// Handle success and errors
+			// Handle successful enrollments
 			if (data.successful.length > 0) {
 				toast.success(
 					`${data.successful.length} دانشجو با موفقیت ثبت‌نام شدند`
 				);
 			}
 
+			// Handle errors for specific students
 			if (data.errors.length > 0) {
-				data.errors.forEach((error: { username: any; reason: any }) => {
-					toast.error(`${error.username}: ${error.reason}`);
+				data.errors.forEach(({ username, reason }) => {
+					toast.error(`${username}: ${reason}`);
 				});
 			}
 
-			fetchCourseGroups(page);
+			// Refresh the course groups data
+			await fetchCourseGroups(page);
 			onUploadExcelClose();
 			setRegisteredUsers([]);
 		} catch (err: any) {
-			console.error("Enrollment error:", err.response?.data || err);
-			toast.error(err.response?.data?.message || "خطا در ثبت‌نام دانشجویان");
+			const errorResponse = err.response?.data as ApiErrorResponse;
+			toast.error(errorResponse?.message || "خطا در ثبت‌نام دانشجویان");
+			console.error("Enrollment error:", errorResponse || err);
 		}
 	};
 

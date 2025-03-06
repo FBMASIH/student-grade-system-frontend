@@ -390,12 +390,7 @@ export function UsersTable({
 					</Select>
 				</div>
 				<div className="flex gap-2">
-					<Button
-						className={`${styles.buttonStyles.primary} h-12 px-6`}
-						onClick={onAddUser}
-						startContent={<Plus className="w-4 h-4" />}>
-						افزودن کاربر
-					</Button>
+				
 					<Button
 						className={`${styles.buttonStyles.danger} h-12 px-6`}
 						onClick={handleDeleteSelectedUsers}

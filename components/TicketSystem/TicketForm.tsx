@@ -4,11 +4,11 @@ import { Button, Input, Textarea } from "@nextui-org/react";
 import { Send } from "lucide-react";
 import { useState } from "react";
 
-export function TicketForm({
-	onTicketCreated,
-}: {
-	onTicketCreated?: () => void;
-}) {
+interface TicketFormProps {
+	onTicketCreated?: () => void; // Changed to not require studentId
+}
+
+export function TicketForm({ onTicketCreated }: TicketFormProps) {
 	const { user } = useAuthStore(); // Get the current user from the store
 	const [formData, setFormData] = useState({
 		title: "",
@@ -26,7 +26,7 @@ export function TicketForm({
 			await api.createTicket({
 				title: formData.title,
 				description: formData.description,
-				createdBy: user.id, // Use the current user's ID
+				createdBy: user.id.toString(), // Use the current user's ID
 			});
 			onTicketCreated?.();
 			setFormData({
@@ -57,7 +57,7 @@ export function TicketForm({
 				minRows={3}
 				required
 			/>
-			
+
 			<Button
 				type="submit"
 				color="primary"
