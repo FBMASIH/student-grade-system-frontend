@@ -11,10 +11,12 @@ import {
 	TicketIcon,
 	Users,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { QuickStats } from "../../../components/QuickStats";
 import { UsersManagement } from "../../../components/UsersManagement";
+import AcademicGroupsManagement from "./academic-groups/page";
 import CourseGroupsManagement from "./course-groups/page";
 import CoursesManagement from "./courses/page";
 import EnrollmentsManagement from "./enrollments/page";
@@ -113,8 +115,9 @@ export default function AdminDashboard() {
 								key="courses"
 								title={
 									<div className="flex items-center gap-2">
-										<BookOpen className="w-4 h-4" />
-										<span>دروس</span>
+										<Users className="w-4 h-4" />
+
+										<span>گروه</span>
 									</div>
 								}>
 								<CoursesManagement />
@@ -135,11 +138,23 @@ export default function AdminDashboard() {
 								key="course-groups"
 								title={
 									<div className="flex items-center gap-2">
-										<Users className="w-4 h-4" />
-										<span>گروه‌های درسی</span>
+										<BookOpen className="w-4 h-4" />
+
+										<span> درس</span>
 									</div>
 								}>
 								<CourseGroupsManagement />
+							</Tab>
+
+							<Tab
+								key="academic-groups"
+								title={
+									<div className="flex items-center gap-2">
+										<BookOpen className="w-4 h-4" />
+										<span>گروه‌های آموزشی</span>
+									</div>
+								}>
+								<AcademicGroupsManagement />
 							</Tab>
 
 							<Tab
@@ -166,6 +181,15 @@ export default function AdminDashboard() {
 						</Tabs>
 					</CardBody>
 				</Card>
+				<nav>
+					<ul>
+						<li>
+							<Link href="/dashboard/admin/academic-groups">
+								Academic Groups
+							</Link>
+						</li>
+					</ul>
+				</nav>
 			</div>
 		</div>
 	);

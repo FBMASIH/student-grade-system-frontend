@@ -1,12 +1,10 @@
 "use client";
 
-import { api } from "@/lib/api";
-import { PaginatedResponse } from "@/lib/types/common";
+import { courseGroupsApi } from "@/lib/api";
 import {
 	Button,
 	Card,
 	CardBody,
-	Chip,
 	Input,
 	Modal,
 	ModalBody,
@@ -25,56 +23,61 @@ import {
 import { AlertCircle, Book, Plus, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 
+interface Group {
+	id: number;
+	groupNumber: number;
+	currentEnrollment: number;
+	capacity: number;
+	course: {
+		id: number;
+		name: string;
+	};
+	professor: {
+		id: number;
+		username: string;
+		role: string;
+	};
+}
+
 interface Course {
 	id: number;
 	name: string;
 	code: string;
 	units: number;
-	department?: string;
-	groups: CourseGroup[];
-}
-
-interface CourseGroup {
-	id: number;
-	name: string;
 	professor: { name: string };
-	capacity: number;
-	enrollments: any[];
 }
 
-export default function CoursesManagement() {
-	const [courses, setCourses] = useState<Course[]>([]);
+export default function GroupsManagement() {
+	const [groups, setGroups] = useState<Group[]>([]);
 	const [page, setPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [formData, setFormData] = useState({
-		name: "",
-		code: "",
-		units: "",
-		department: "",
-		groupId: 0,
-		professorId: 0,
+		courseId: "",
+		professorId: "",
 	});
 	const [error, setError] = useState("");
 	const { isOpen, onOpen, onClose } = useDisclosure();
 	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
-		fetchCourses(page);
+		fetchGroups(page);
 	}, [page]);
 
-	const fetchCourses = async (currentPage: number) => {
+	const fetchGroups = async (currentPage: number) => {
 		try {
 			setIsLoading(true);
-			const response = await api.getAllCourses(currentPage, 10, searchQuery);
-			const paginatedData = response.data as PaginatedResponse;
-
-			setCourses(paginatedData.items);
-			setTotalPages(paginatedData.meta.totalPages);
+			const response = await courseGroupsApi.getAllGroups(
+				currentPage,
+				10,
+				searchQuery
+			);
+			setGroups(response.data.items);
+			setTotalPages(response.data.meta.totalPages);
 		} catch (err: any) {
-			console.error("Error fetching courses:", err);
+			console.error("Error fetching groups:", err);
 			setError(err.message);
-			setCourses([]);
+			setGroups([]);
 		} finally {
 			setIsLoading(false);
 		}
@@ -83,54 +86,41 @@ export default function CoursesManagement() {
 	const handleSearch = (value: string) => {
 		setSearchQuery(value);
 		setPage(1);
-		fetchCourses(1);
+		fetchGroups(1);
 	};
 
-	const handleCreateCourse = async () => {
+	const handleCreateGroup = async () => {
 		try {
-			await api.createCourse({
-				name: formData.name,
-				code: formData.code,
-				units: parseInt(formData.units),
-				department: formData.department || undefined,
+			await courseGroupsApi.createGroup({
+				courseId: parseInt(formData.courseId),
+				professorId: parseInt(formData.professorId),
 			});
 			onClose();
-			fetchCourses(page);
-			setFormData({
-				name: "",
-				code: "",
-				units: "",
-				department: "",
-				groupId: 0,
-				professorId: 0,
-			});
+			fetchGroups(page);
+			setFormData({ courseId: "", professorId: "" });
 		} catch (err: any) {
 			setError(err.message);
 		}
 	};
 
-	const handleDeleteCourse = async (id: number) => {
-		if (!confirm("آیا از حذف این درس اطمینان دارید؟")) return;
+	const handleDeleteGroup = async (id: number) => {
+		if (!confirm("آیا از حذف این گروه اطمینان دارید؟")) return;
 
 		try {
-			await api.deleteCourse(id);
-			fetchCourses(page);
+			await courseGroupsApi.deleteGroup(id);
+			fetchGroups(page);
 		} catch (err: any) {
 			setError(err.message);
 		}
 	};
-
-	useEffect(() => {
-		console.log("Current courses:", courses);
-	}, [courses]);
 
 	return (
 		<div className="space-y-6">
 			<div className="flex justify-between items-center">
 				<div>
-					<h2 className="text-2xl font-bold">مدیریت گروه</h2>
+					<h2 className="text-2xl font-bold">مدیریت گروه‌ها</h2>
 					<p className="text-neutral-600 dark:text-neutral-400">
-						{courses.length} گروه فعال در سیستم
+						{groups.length} گروه فعال در سیستم
 					</p>
 				</div>
 				<Button
@@ -149,7 +139,7 @@ export default function CoursesManagement() {
 						<>
 							<div className="p-4 border-b border-neutral-200/50 dark:border-neutral-800/50">
 								<Input
-									placeholder="جستجو در گروه..."
+									placeholder="جستجو در گروه‌ها..."
 									value={searchQuery}
 									onChange={(e) => handleSearch(e.target.value)}
 									startContent={<Search className="w-4 h-4 text-neutral-500" />}
@@ -157,26 +147,22 @@ export default function CoursesManagement() {
 								/>
 							</div>
 
-							<Table aria-label="لیست گروه">
+							<Table aria-label="لیست گروه‌ها">
 								<TableHeader>
-									<TableColumn>کد گروه</TableColumn>
-									<TableColumn>نام گروه</TableColumn>
-									<TableColumn>تعداد درس ها</TableColumn>
+									<TableColumn>شماره گروه</TableColumn>
+									<TableColumn>نام درس</TableColumn>
+									<TableColumn>ظرفیت</TableColumn>
 									<TableColumn>عملیات</TableColumn>
 								</TableHeader>
 								<TableBody emptyContent="گروهی یافت نشد">
-									{courses.map((course) => (
-										<TableRow key={course.id}>
-											<TableCell>
-												<Chip variant="flat" color="primary">
-													{course.code}
-												</Chip>
-											</TableCell>
-											<TableCell>{course.name}</TableCell>
+									{groups.map((group) => (
+										<TableRow key={group.id}>
+											<TableCell>{group.groupNumber}</TableCell>
+											<TableCell>{group.course.name}</TableCell>
 											<TableCell>
 												<div className="flex items-center gap-2">
 													<Book className="w-4 h-4 text-neutral-500" />
-													{course.groups?.length || 0} گروه
+													{group.currentEnrollment}/{group.capacity}
 												</div>
 											</TableCell>
 											<TableCell>
@@ -185,7 +171,7 @@ export default function CoursesManagement() {
 														color="danger"
 														variant="flat"
 														size="sm"
-														onClick={() => handleDeleteCourse(course.id)}>
+														onClick={() => handleDeleteGroup(group.id)}>
 														حذف گروه
 													</Button>
 												</div>
@@ -215,44 +201,27 @@ export default function CoursesManagement() {
 				</div>
 			)}
 
-			{/* Add Course Modal */}
+			{/* Add Group Modal */}
 			<Modal isOpen={isOpen} onClose={onClose}>
 				<ModalContent>
 					{(onClose) => (
 						<>
-							<ModalHeader>افزودن درس جدید</ModalHeader>
+							<ModalHeader>افزودن گروه جدید</ModalHeader>
 							<ModalBody className="gap-4">
 								<Input
-									label="نام درس"
-									placeholder="مثال: ریاضی ۱"
-									value={formData.name}
+									label="درس"
+									placeholder="شناسه درس"
+									value={formData.courseId}
 									onChange={(e) =>
-										setFormData({ ...formData, name: e.target.value })
+										setFormData({ ...formData, courseId: e.target.value })
 									}
 								/>
 								<Input
-									label="کد درس"
-									placeholder="مثال: MATH101"
-									value={formData.code}
+									label="استاد"
+									placeholder="شناسه استاد"
+									value={formData.professorId}
 									onChange={(e) =>
-										setFormData({ ...formData, code: e.target.value })
-									}
-								/>
-								<Input
-									label="تعداد واحد"
-									placeholder="مثال: 3"
-									type="number"
-									value={formData.units}
-									onChange={(e) =>
-										setFormData({ ...formData, units: e.target.value })
-									}
-								/>
-								<Input
-									label="گروه آموزشی"
-									placeholder="مثال: ریاضی"
-									value={formData.department}
-									onChange={(e) =>
-										setFormData({ ...formData, department: e.target.value })
+										setFormData({ ...formData, professorId: e.target.value })
 									}
 								/>
 							</ModalBody>
@@ -262,11 +231,9 @@ export default function CoursesManagement() {
 								</Button>
 								<Button
 									color="primary"
-									onPress={handleCreateCourse}
-									isDisabled={
-										!formData.name || !formData.code || !formData.units
-									}>
-									افزودن درس
+									onPress={handleCreateGroup}
+									isDisabled={!formData.courseId || !formData.professorId}>
+									افزودن گروه
 								</Button>
 							</ModalFooter>
 						</>

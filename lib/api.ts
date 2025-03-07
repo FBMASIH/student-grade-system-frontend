@@ -1,5 +1,5 @@
 import axios from "axios";
-import { PaginatedResponse, User } from "./types/common";
+import { CourseAssignment, Group, PaginatedResponse } from "./types/common";
 import {
 	BulkScoreResponse,
 	BulkScoreUpdate,
@@ -9,15 +9,14 @@ import {
 } from "./types/enrollment";
 import { StudentObjection } from "./types/objection";
 
-const API_URL = "http://localhost:3001/";
-
-const apiClient = axios.create({
-	baseURL: API_URL,
-	headers: { "Content-Type": "application/json" },
-	timeout: 10000,
+// Create base axios instance
+const axiosInstance = axios.create({
+	baseURL: "http://localhost:3001",
+	withCredentials: true,
 });
 
-apiClient.interceptors.request.use(
+// Add interceptors
+axiosInstance.interceptors.request.use(
 	(config) => {
 		const token = localStorage.getItem("token");
 		if (token) {
@@ -28,14 +27,12 @@ apiClient.interceptors.request.use(
 	(error) => Promise.reject(error)
 );
 
-apiClient.interceptors.response.use(
+axiosInstance.interceptors.response.use(
 	(response) => response,
 	(error) => {
-		if (error.response) {
-			if (error.response.status === 401) {
-				localStorage.removeItem("token");
-				window.location.href = "/login";
-			}
+		if (error.response?.status === 401) {
+			localStorage.removeItem("token");
+			window.location.href = "/login";
 		}
 		return Promise.reject(error);
 	}
@@ -61,51 +58,226 @@ interface Course {
 	name: string;
 	code: string;
 	subject: string;
-	groups: Array<{
-		// ...existing group properties...
-	}>;
+	professor: { name: string };
 }
+
+interface GroupResponse {
+	id: number;
+	groupNumber: number;
+	currentEnrollment: number;
+	capacity: number;
+	course: {
+		id: number;
+		name: string;
+	};
+	professor: {
+		id: number;
+		username: string;
+		role: string; // Add role property
+	};
+}
+
+interface GroupStudentStatus {
+	id: number;
+	username: string;
+	isEnrolled: boolean;
+	canEnroll: boolean;
+	enrollmentStatus: "enrolled" | "can_enroll" | "cannot_enroll"; // Add enrollmentStatus property
+}
+
+export const courseGroupsApi = {
+	getAllGroups: (page = 1, limit = 10, search?: string) =>
+		axiosInstance.get<PaginatedResponse<GroupResponse>>("/groups", {
+			params: { page, limit, search },
+		}),
+
+	getGroupById: (id: number) =>
+		axiosInstance.get<GroupResponse>(`/groups/${id}`),
+
+	createGroup: (data: {
+		courseId: number;
+		professorId: number;
+		capacity?: number;
+	}) => axiosInstance.post<GroupResponse>("/groups", data),
+
+	updateGroup: (
+		id: number,
+		data: {
+			courseId?: number;
+			professorId?: number;
+			capacity?: number;
+		}
+	) => axiosInstance.patch<GroupResponse>(`/groups/${id}`, data),
+
+	deleteGroup: (id: number) => axiosInstance.delete(`/groups/${id}`),
+
+	// Group Students Management
+	getGroupStudents: (groupId: number) =>
+		axiosInstance.get<{
+			students: Array<{
+				id: number;
+				username: string;
+				isEnrolled: boolean;
+				canEnroll: boolean;
+			}>;
+			groupInfo: {
+				id: number;
+				groupNumber: number;
+				courseName: string;
+				capacity: number;
+				currentEnrollment: number;
+			};
+		}>(`/groups/${groupId}/students`),
+
+	addStudentsToGroup: (groupId: number, studentIds: number[]) =>
+		axiosInstance.post(`/groups/${groupId}/students`, { studentIds }),
+
+	removeStudentsFromGroup: (groupId: number, studentIds: number[]) =>
+		axiosInstance.delete(`/groups/${groupId}/students`, {
+			data: { studentIds },
+		}),
+
+	// Bulk Operations
+	bulkEnrollStudents: (groupId: number, usernames: string[]) =>
+		axiosInstance.post<{
+			successful: Array<{ username: string }>;
+			errors: Array<{ username: string; reason: string }>;
+		}>(`/groups/${groupId}/bulk-enroll`, { usernames }),
+
+	// Search students for group
+	searchAvailableStudents: (groupId: number, query?: string) =>
+		axiosInstance.get<{
+			students: Array<{
+				id: number;
+				username: string;
+				firstName: string;
+				lastName: string;
+				isEnrolled: boolean;
+				canEnroll: boolean;
+			}>;
+		}>(`/groups/${groupId}/available-students`, {
+			params: { search: query },
+		}),
+
+	// Add this new method
+	addStudentsToGroupByUsername: (groupId: number, usernames: string[]) =>
+		axiosInstance.post<{
+			successful: Array<{ username: string }>;
+			errors: Array<{ username: string; reason: string }>;
+		}>(`/groups/${groupId}/students/usernames`, { usernames }),
+};
+
+export const groupsApi = {
+	// Group Management
+	getAllGroups: (page = 1, limit = 10, search?: string) =>
+		axiosInstance.get<PaginatedResponse<Group>>("/groups", {
+			params: { page, limit, search },
+		}),
+
+	createGroup: (data: { name: string }) =>
+		axiosInstance.post<Group>("/groups", data),
+
+	deleteGroup: (id: number) => axiosInstance.delete(`/groups/${id}`),
+
+	removeStudentsFromGroup: (groupId: number, studentIds: number[]) =>
+		axiosInstance.delete(`/groups/${groupId}/students`, {
+			data: { studentIds },
+		}),
+
+	getGroupStudents: (groupId: number) =>
+		axiosInstance.get<{
+			students: Array<{
+				id: number;
+				username: string;
+				isEnrolled: boolean;
+				canEnroll: boolean;
+			}>;
+			groupInfo: {
+				id: number;
+				groupNumber: number;
+				courseName: string;
+				capacity: number;
+				currentEnrollment: number;
+			};
+		}>(`/groups/${groupId}/students`),
+
+	addStudentsToGroupByUsername: (groupId: number, usernames: string[]) =>
+		axiosInstance.post<{
+			successful: Array<{ username: string }>;
+			errors: Array<{ username: string; reason: string }>;
+		}>(`/groups/${groupId}/students/usernames`, { usernames }),
+};
+
+export const courseAssignmentsApi = {
+	// Course Assignment Management
+	getAllAssignments: (groupId: number, page = 1, limit = 10) =>
+		axiosInstance.get<PaginatedResponse<CourseAssignment>>(
+			`/groups/${groupId}/assignments`,
+			{
+				params: { page, limit },
+			}
+		),
+
+	createAssignment: (data: {
+		groupId: number;
+		courseId: number;
+		professorId: number;
+		capacity: number;
+	}) => axiosInstance.post<CourseAssignment>("/course-assignments", data),
+
+	deleteAssignment: (id: number) =>
+		axiosInstance.delete(`/course-assignments/${id}`),
+
+	// Student enrollment
+	enrollStudents: (assignmentId: number, studentIds: number[]) =>
+		axiosInstance.post(`/course-assignments/${assignmentId}/students`, {
+			studentIds,
+		}),
+
+	// Add this new method
+	removeStudentsFromAssignment: (assignmentId: number, studentIds: number[]) =>
+		axiosInstance.delete(`/course-assignments/${assignmentId}/students`, {
+			data: { studentIds },
+		}),
+};
 
 export const api = {
 	// Auth APIs
 	login: (username: string, password: string) =>
-		apiClient.post("/auth/login", { username, password }),
+		axiosInstance.post("/auth/login", { username, password }),
 	registerUser: (
 		username: string,
 		password: string,
 		firstName: string,
 		lastName: string
 	) =>
-		apiClient.post("/auth/register", {
+		axiosInstance.post("/auth/register", {
 			username,
 			password,
 			firstName,
 			lastName,
 		}),
-	getCurrentUser: () => apiClient.get("/users/me"),
+	getCurrentUser: () => axiosInstance.get("/users/me"),
 
 	// Course Management
 	getAllCourses: (page: number = 1, limit: number = 10, search?: string) =>
-		apiClient.get<PaginatedResponse>(`/courses`, {
+		axiosInstance.get<PaginatedResponse<Course>>(`/courses`, {
 			params: { page, limit, search },
 		}),
-	createCourse: (data: { name: string; code: string }) =>
-		apiClient.post("/courses", data),
-	updateCourse: (
-		id: number,
-		data: {
-			name?: string;
-			code?: string;
-		}
-	) => apiClient.patch(`/courses/${id}`, data),
-	deleteCourse: (id: number) => apiClient.delete(`/courses/${id}`),
-	getCourseById: (id: number) => apiClient.get(`/courses/${id}`),
+	createCourse: (data: {
+		name: string;
+		code: string;
+		units: number;
+		department?: string;
+	}) => axiosInstance.post<Course>("/courses", data),
+	deleteCourse: (id: number) => axiosInstance.delete(`/courses/${id}`),
+	getCourseById: (id: number) => axiosInstance.get(`/courses/${id}`),
 	getStudentCourses: (studentId: number) =>
-		apiClient.get(`/courses/student/${studentId}`),
+		axiosInstance.get(`/courses/student/${studentId}`),
 	getProfessorCourses: (professorId: number) =>
-		apiClient.get(`/courses/professor/${professorId}`),
+		axiosInstance.get(`/courses/professor/${professorId}`),
 	getCourseStudents: (courseId: number) =>
-		apiClient.get<
+		axiosInstance.get<
 			Array<{
 				id: number;
 				username: string;
@@ -116,64 +288,32 @@ export const api = {
 			}>
 		>(`/courses/${courseId}/students`),
 
-	// Course Groups Management
-	getAllCourseGroups: (page: number = 1, limit: number = 10, search?: string) =>
-		apiClient.get<PaginatedResponse>("/course-groups", {
-			params: { page, limit, search },
-		}),
-	getCourseGroupById: (id: number) => apiClient.get(`/course-groups/${id}`),
-	createCourseGroup: (data: { courseId: number; professorId: number }) =>
-		apiClient.post("/course-groups", data),
-	updateCourseGroup: (
-		id: number,
-		data: {
-			groupNumber?: number;
-			capacity?: number;
-			courseId?: number;
-			professorId?: number;
-		}
-	) => apiClient.patch(`/course-groups/${id}`, data),
-	deleteCourseGroup: (id: number) => apiClient.delete(`/course-groups/${id}`),
-	addStudentsToGroup: (groupId: number, studentIds: number[]) =>
-		apiClient.post(`/course-groups/${groupId}/students`, { studentIds }),
-	getStudentsInGroup: (groupId: number) =>
-		apiClient.get<User[]>(`/course-groups/${groupId}/students`),
-	getGroupStudentsStatus: (groupId: number) =>
-		apiClient.get(`/course-groups/${groupId}/students-status`),
-	addStudentsToGroupByUsername: (groupId: number, usernames: string[]) =>
-		apiClient.post<{
-			successful: Array<{ username: string }>;
-			errors: Array<{ username: string; reason: string }>;
-		}>(`/course-groups/${groupId}/students/bulk`, { usernames }),
-
 	// Enrollment Management
 	getAllEnrollments: (page: number = 1, limit: number = 10, search?: string) =>
-		apiClient.get<PaginatedResponse>("/enrollments", {
+		axiosInstance.get<PaginatedResponse<StudentEnrollment>>("/enrollments", {
 			params: { page, limit, search },
 		}),
-	createEnrollment: (studentId: number, groupId: number) =>
-		apiClient.post("/enrollments", { studentId, groupId }),
-	deleteEnrollment: (id: number) => apiClient.delete(`/enrollments/${id}`),
+	deleteEnrollment: (id: number) => axiosInstance.delete(`/enrollments/${id}`),
 
 	// Unified endpoints for score management
 	getStudentEnrollments: (studentId: string | number) =>
-		apiClient.get<{
+		axiosInstance.get<{
 			enrollments: StudentEnrollment[];
-		}>(`/api/enrollments/${studentId}/details`),
+		}>(`/enrollments/${studentId}/details`),
 
 	updateStudentScore: (enrollmentId: number, score: number) =>
-		apiClient.patch<ScoreResponse>(`/api/enrollments/${enrollmentId}/score`, {
+		axiosInstance.patch<ScoreResponse>(`/enrollments/${enrollmentId}/score`, {
 			score, // 0-100
 		}),
 
 	searchStudent: (query: string) =>
-		apiClient.get<Student[]>(`/api/students`, {
+		axiosInstance.get<Student[]>(`/students`, {
 			params: { q: query },
 		}),
 
 	// Bulk score operations
 	bulkUpdateScores: (scores: BulkScoreUpdate[]) =>
-		apiClient.post<BulkScoreResponse>("/api/scores/bulk", { scores }),
+		axiosInstance.post<BulkScoreResponse>("/scores/bulk", { scores }),
 
 	// Score import/export
 	exportScores: (filters?: {
@@ -181,20 +321,20 @@ export const api = {
 		groupId?: number;
 		studentId?: number;
 	}) =>
-		apiClient.get("/api/scores/export", {
+		axiosInstance.get("/scores/export", {
 			params: filters,
 			responseType: "blob",
 		}),
 
 	importScores: (formData: FormData) =>
-		apiClient.post<{
+		axiosInstance.post<{
 			successful: number;
 			failed: number;
 			errors: Array<{
 				row: number;
 				message: string;
 			}>;
-		}>("/api/scores/import", formData, {
+		}>("/scores/import", formData, {
 			headers: { "Content-Type": "multipart/form-data" },
 		}),
 
@@ -205,7 +345,15 @@ export const api = {
 		search?: string,
 		role?: string
 	) =>
-		apiClient.get<PaginatedResponse>("/users", {
+		axiosInstance.get<
+			PaginatedResponse<{
+				id: number;
+				username: string;
+				firstName: string;
+				lastName: string;
+				role: string;
+			}>
+		>("/users", {
 			params: {
 				page,
 				limit,
@@ -214,8 +362,8 @@ export const api = {
 			},
 		}),
 	updateUserRole: (id: number, role: string) =>
-		apiClient.patch(`/users/${id}/role`, { role }),
-	deleteUser: (id: number) => apiClient.delete(`/users/${id}`),
+		axiosInstance.patch(`/users/${id}/role`, { role }),
+	deleteUser: (id: number) => axiosInstance.delete(`/users/${id}`),
 	createUserManual: (
 		username: string,
 		password: string,
@@ -223,7 +371,7 @@ export const api = {
 		lastName: string,
 		role: string
 	) =>
-		apiClient.post("/users/manual", {
+		axiosInstance.post("/users/manual", {
 			username,
 			password,
 			firstName,
@@ -231,7 +379,7 @@ export const api = {
 			role,
 		}),
 	uploadUsersExcel: (formData: FormData) =>
-		apiClient.post("/users/upload-excel", formData, {
+		axiosInstance.post("/users/upload-excel", formData, {
 			headers: { "Content-Type": "multipart/form-data" },
 		}),
 	updateUser: (
@@ -243,26 +391,37 @@ export const api = {
 			lastName?: string;
 			role?: string;
 		}
-	) => apiClient.patch(`/users/${id}`, data),
+	) => axiosInstance.patch(`/users/${id}`, data),
 	deleteMultipleUsers: (userIds: number[]) =>
-		apiClient.post("/users/delete-multiple", { userIds }),
-	deleteAllStudents: () => apiClient.get("/users/delete-students"),
+		axiosInstance.post("/users/delete-multiple", { userIds }),
+	deleteAllStudents: () => axiosInstance.get("/users/delete-students"),
 
 	// Ticket Management
 	createTicket: (data: {
 		title: string;
 		description: string;
 		createdBy: string;
-	}) => apiClient.post("/tickets", data),
+	}) => axiosInstance.post("/tickets", data),
 
 	getAllTickets: (page: number = 1, limit: number = 10, filters?: any) =>
-		apiClient.get<PaginatedResponse>("/tickets", {
+		axiosInstance.get<
+			PaginatedResponse<{
+				id: number;
+				title: string;
+				description: string;
+				status: string;
+				priority: string;
+				category: string;
+				createdBy: string;
+				createdAt: string;
+			}>
+		>("/tickets", {
 			params: { page, limit, ...filters },
 		}),
 
 	getTicketById: (id: number) => {
 		console.log("Getting ticket by id:", id);
-		return apiClient.get(`/tickets/${id}`);
+		return axiosInstance.get(`/tickets/${id}`);
 	},
 
 	updateTicket: (
@@ -274,9 +433,9 @@ export const api = {
 			priority?: string;
 			status?: string;
 		}
-	) => apiClient.patch(`/tickets/${id}`, data),
+	) => axiosInstance.patch(`/tickets/${id}`, data),
 
-	deleteTicket: (id: number) => apiClient.delete(`/tickets/${id}`),
+	deleteTicket: (id: number) => axiosInstance.delete(`/tickets/${id}`),
 
 	addCommentToTicket: (
 		ticketId: number,
@@ -286,31 +445,34 @@ export const api = {
 		}
 	) => {
 		console.log("Adding comment to ticket:", ticketId, data);
-		return apiClient.post(`/tickets/${ticketId}/comments`, data);
+		return axiosInstance.post(`/tickets/${ticketId}/comments`, data);
 	},
 
 	getCommentsForTicket: (ticketId: number) => {
 		console.log("Getting comments for ticket:", ticketId);
-		return apiClient.get(`/tickets/${ticketId}/comments`);
+		return axiosInstance.get(`/tickets/${ticketId}/comments`);
 	},
 
 	submitObjection: (data: {
 		courseId: number;
 		studentId: number;
 		reason: string;
-	}) => apiClient.post<ObjectionResponse>("/objections/submit", data),
+	}) => axiosInstance.post<ObjectionResponse>("/objections/submit", data),
 
 	getStudentObjections: (studentId: number) =>
-		apiClient.get<StudentObjection[]>(`/objections/students/${studentId}`),
+		axiosInstance.get<StudentObjection[]>(`/objections/students/${studentId}`),
 
 	getTeacherObjections: (teacherId: number) =>
-		apiClient.get<ObjectionResponse[]>(`/objections/teacher/${teacherId}`),
+		axiosInstance.get<ObjectionResponse[]>(`/objections/teacher/${teacherId}`),
 
 	resolveObjection: (objectionId: number, data: { resolution: string }) =>
-		apiClient.post<{ message: string }>(
+		axiosInstance.post<{ message: string }>(
 			`/objections/${objectionId}/resolve`,
 			data
 		),
 	updateScore: (enrollmentId: number, score: number) =>
-		apiClient.put(`/enrollments/${enrollmentId}/score`, { score }),
+		axiosInstance.put(`/enrollments/${enrollmentId}/score`, { score }),
 };
+
+// Export the axios instance if needed elsewhere
+export { axiosInstance };

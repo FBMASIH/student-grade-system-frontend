@@ -1,6 +1,6 @@
 "use client";
 
-import { api } from "@/lib/api";
+import { api, courseGroupsApi } from "@/lib/api";
 import { PaginatedResponse } from "@/lib/types/common";
 import {
 	Button,
@@ -33,7 +33,7 @@ import {
 	Search,
 	Upload,
 	UserPlus,
-} from "lucide-react"; // Add Upload and Eye icons
+} from "lucide-react";
 import {
 	AwaitedReactNode,
 	JSXElementConstructor,
@@ -43,7 +43,7 @@ import {
 	useEffect,
 	useState,
 } from "react";
-import { toast } from "sonner"; // Add this import
+import { toast } from "sonner";
 
 interface CourseGroup {
 	id: number;
@@ -72,7 +72,6 @@ interface GroupStatusResponse {
 	students: GroupStudentStatus[];
 }
 
-// Add this interface
 interface RegisteredUser {
 	id: number;
 	username: string;
@@ -80,14 +79,12 @@ interface RegisteredUser {
 	lastName: string;
 }
 
-// Add this interface for API error response
 interface ApiErrorResponse {
 	message: string;
 	error: string;
 	statusCode: number;
 }
 
-// Add this interface
 interface DuplicateUser {
 	username: string;
 	firstName: string;
@@ -95,7 +92,6 @@ interface DuplicateUser {
 	message: string;
 }
 
-// Update the interfaces to match exact API response
 interface ExcelUploadResponse {
 	users: RegisteredUser[];
 	errors: string[];
@@ -108,6 +104,33 @@ interface BulkEnrollmentResponse {
 	errors: Array<{ username: string; reason: string }>;
 }
 
+interface GroupStudent {
+	id: number;
+	username: string;
+	firstName: string;
+	lastName: string;
+	isEnrolled: boolean;
+	canEnroll: boolean;
+}
+
+interface GroupInfo {
+	id: number;
+	groupNumber: number;
+	courseName: string;
+	capacity: number;
+	currentEnrollment: number;
+}
+
+interface Course {
+	id: number;
+	name: string;
+}
+
+interface Professor {
+	id: number;
+	username: string;
+}
+
 export default function CourseGroupsManagement() {
 	const [courseGroups, setCourseGroups] = useState<CourseGroup[]>([]);
 	const [page, setPage] = useState(1);
@@ -117,15 +140,8 @@ export default function CourseGroupsManagement() {
 		courseId: "",
 		professorId: "",
 	});
-	const [courses, setCourses] = useState<Array<{ id: number; name: string }>>(
-		[]
-	);
-	const [professors, setProfessors] = useState<
-		{
-			id: number;
-			username: string;
-		}[]
-	>([]);
+	const [courses, setCourses] = useState<Array<Course>>([]);
+	const [professors, setProfessors] = useState<Array<Professor>>([]);
 	const [students, setStudents] = useState<GroupStudentStatus[]>([]);
 	const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
 	const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
@@ -162,19 +178,15 @@ export default function CourseGroupsManagement() {
 	const fetchCourseGroups = async (currentPage: number) => {
 		try {
 			setIsLoading(true);
-			const { data } = await api.getAllCourseGroups(
+			const { data } = await courseGroupsApi.getAllGroups(
 				currentPage,
 				10,
 				searchQuery
 			);
-			const paginatedData = data as PaginatedResponse;
-
-			// Add null check and default to empty array
-			setCourseGroups(paginatedData?.items || []);
-			setTotalPages(paginatedData?.meta?.totalPages || 1);
+			setCourseGroups(data?.items || []);
+			setTotalPages(data?.meta?.totalPages || 1);
 		} catch (err: any) {
-			setError(err.message);
-			setCourseGroups([]); // Reset to empty array on error
+			toast.error(err.response?.data?.message || "خطا در دریافت گروه‌ها");
 		} finally {
 			setIsLoading(false);
 		}
@@ -188,10 +200,9 @@ export default function CourseGroupsManagement() {
 				api.getUsers(1, 100, undefined, "teacher"),
 			]);
 
-			const coursesData = coursesRes.data as PaginatedResponse;
-			const usersData = usersRes.data as PaginatedResponse;
+			const coursesData = coursesRes.data as PaginatedResponse<Course>;
+			const usersData = usersRes.data as PaginatedResponse<Professor>;
 
-			// Add null checks and default to empty array
 			setCourses(coursesData?.items || []);
 			setProfessors(usersData?.items || []);
 		} catch (err: any) {
@@ -214,16 +225,6 @@ export default function CourseGroupsManagement() {
 		}
 	};
 
-	const fetchStudentsInGroup = async (groupId: number) => {
-		try {
-			const { data } = await api.getStudentsInGroup(groupId);
-			setSelectedStudents(data.map((student) => student.id));
-		} catch (err: any) {
-			setError(err.message);
-			setSelectedStudents([]);
-		}
-	};
-
 	const handleSearch = (value: string) => {
 		setSearchQuery(value);
 		setPage(1);
@@ -232,10 +233,11 @@ export default function CourseGroupsManagement() {
 
 	const handleCreateGroup = async () => {
 		try {
-			await api.createCourseGroup({
+			await courseGroupsApi.createGroup({
 				courseId: parseInt(formData.courseId),
 				professorId: parseInt(formData.professorId),
 			});
+			toast.success("گروه جدید با موفقیت ایجاد شد");
 			onClose();
 			fetchCourseGroups(page);
 			setFormData({
@@ -243,7 +245,7 @@ export default function CourseGroupsManagement() {
 				professorId: "",
 			});
 		} catch (err: any) {
-			setError(err.message);
+			toast.error(err.response?.data?.message || "خطا در ایجاد گروه");
 		}
 	};
 
@@ -251,34 +253,46 @@ export default function CourseGroupsManagement() {
 		setSelectedGroupId(groupId);
 		setIsLoadingForm(true);
 		try {
-			const { data } = await api.getGroupStudentsStatus(groupId);
-			setStudents(data.students || []);
+			const { data } = await courseGroupsApi.getGroupStudents(groupId);
+			setStudents(
+				data.students.map((student) => ({
+					...student,
+					enrollmentStatus: student.isEnrolled
+						? "enrolled"
+						: student.canEnroll
+						? "can_enroll"
+						: "cannot_enroll",
+				})) || []
+			);
 			setSelectedGroupInfo(data.groupInfo);
 			setSelectedStudents(
 				data.students
-					.filter((student: { isEnrolled: any }) => student.isEnrolled)
-					.map((student: { id: any }) => student.id)
+					.filter((student) => student.isEnrolled)
+					.map((student) => student.id)
 			);
 			onManageStudentsOpen();
 		} catch (err: any) {
-			setError(err.message);
-			setStudents([]);
-			setSelectedStudents([]);
+			toast.error(
+				err.response?.data?.message || "خطا در دریافت اطلاعات دانشجویان"
+			);
 		} finally {
 			setIsLoadingForm(false);
 		}
 	};
 
 	const handleAddStudentsToGroup = async () => {
-		if (selectedGroupId === null) return;
+		if (!selectedGroupId) return;
 
 		try {
-			await api.addStudentsToGroup(selectedGroupId, selectedStudents);
+			await courseGroupsApi.addStudentsToGroup(
+				selectedGroupId,
+				selectedStudents
+			);
+			toast.success("دانشجویان با موفقیت به گروه اضافه شدند");
 			onManageStudentsClose();
 			fetchCourseGroups(page);
-			setSelectedStudents([]);
 		} catch (err: any) {
-			setError(err.message);
+			toast.error(err.response?.data?.message || "خطا در افزودن دانشجویان");
 		}
 	};
 
@@ -294,7 +308,6 @@ export default function CourseGroupsManagement() {
 		navigator.clipboard.writeText(id.toString());
 	};
 
-	// Update the handleFileChange function
 	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
@@ -310,23 +323,18 @@ export default function CourseGroupsManagement() {
 			const { data } = await api.uploadUsersExcel(formData);
 			console.log("Upload response:", data);
 
-			// Store all valid users (both new and reactivated)
 			const validUsers = [...(data.users || []), ...(data.reactivated || [])];
 			setRegisteredUsers(validUsers);
 
-			// Store duplicates and errors
 			setDuplicateUsers(data.duplicates || []);
 			setUploadErrors(data.errors || []);
 
-			// Show success messages
 			if (data.users?.length > 0) {
-				toast.success(`${data.users.length} کاربر جدید با موفقیت ثبت شد`);
 			}
 			if (data.reactivated?.length > 0) {
 				toast.success(`${data.reactivated.length} کاربر مجدداً فعال شد`);
 			}
 
-			// Show duplicate warnings
 			data.duplicates?.forEach(
 				(d: { firstName: any; lastName: any; username: any; message: any }) => {
 					toast.warning(
@@ -335,7 +343,6 @@ export default function CourseGroupsManagement() {
 				}
 			);
 
-			// Show errors
 			data.errors?.forEach(
 				(
 					error:
@@ -363,7 +370,6 @@ export default function CourseGroupsManagement() {
 		}
 	};
 
-	// Update the handleEnrollUploadedUsers function
 	const handleEnrollUploadedUsers = async () => {
 		if (!selectedGroupId) {
 			toast.error("گروه انتخاب نشده است");
@@ -377,26 +383,23 @@ export default function CourseGroupsManagement() {
 
 		try {
 			const usernames = registeredUsers.map((user) => user.username);
-			const { data } = await api.addStudentsToGroupByUsername(
+			const { data } = await courseGroupsApi.addStudentsToGroupByUsername(
 				selectedGroupId,
 				usernames
 			);
 
-			// Handle successful enrollments
 			if (data.successful.length > 0) {
 				toast.success(
 					`${data.successful.length} دانشجو با موفقیت ثبت‌نام شدند`
 				);
 			}
 
-			// Handle errors for specific students
 			if (data.errors.length > 0) {
 				data.errors.forEach(({ username, reason }) => {
 					toast.error(`${username}: ${reason}`);
 				});
 			}
 
-			// Refresh the course groups data
 			await fetchCourseGroups(page);
 			onUploadExcelClose();
 			setRegisteredUsers([]);
@@ -407,22 +410,56 @@ export default function CourseGroupsManagement() {
 		}
 	};
 
-	// Add this new function before the return statement
 	const handleDeleteCourseGroup = async (
 		groupId: number,
 		courseName: string,
 		enrollmentCount: number
 	) => {
-		const confirmMessage = `آیا از حذف این گروه درسی اطمینان دارید؟\n\nهشدار: با حذف این گروه، تمامی ${enrollmentCount} ثبت‌نام موجود در آن نیز حذف خواهند شد.\n\nدرس: ${courseName}\nشماره گروه: ${groupId}`;
+		if (
+			!confirm(
+				`آیا از حذف این گروه درسی اطمینان دارید؟\n\n` +
+					`هشدار: با حذف این گروه، تمامی ${enrollmentCount} ثبت‌نام موجود در آن نیز حذف خواهند شد.\n\n` +
+					`درس: ${courseName}\nشماره گروه: ${groupId}`
+			)
+		)
+			return;
 
-		if (confirm(confirmMessage)) {
-			try {
-				await api.deleteCourseGroup(groupId);
-				toast.success("گروه درسی با موفقیت حذف شد");
-				fetchCourseGroups(page);
-			} catch (err: any) {
-				toast.error(err.response?.data?.message || "خطا در حذف گروه درسی");
+		try {
+			await courseGroupsApi.deleteGroup(groupId);
+			toast.success("گروه درسی با موفقیت حذف شد");
+			fetchCourseGroups(page);
+		} catch (err: any) {
+			toast.error(err.response?.data?.message || "خطا در حذف گروه درسی");
+		}
+	};
+
+	const handleBulkEnrollment = async () => {
+		if (!selectedGroupId || !registeredUsers.length) return;
+
+		try {
+			const usernames = registeredUsers.map((user) => user.username);
+			const { data } = await courseGroupsApi.bulkEnrollStudents(
+				selectedGroupId,
+				usernames
+			);
+
+			if (data.successful?.length) {
+				toast.success(
+					`${data.successful.length} دانشجو با موفقیت ثبت‌نام شدند`
+				);
 			}
+
+			data.errors?.forEach(({ username, reason }) => {
+				toast.error(`${username}: ${reason}`);
+			});
+
+			await fetchCourseGroups(page);
+			onUploadExcelClose();
+			setRegisteredUsers([]);
+		} catch (err: any) {
+			toast.error(
+				err.response?.data?.message || "خطا در ثبت‌نام گروهی دانشجویان"
+			);
 		}
 	};
 
@@ -430,11 +467,11 @@ export default function CourseGroupsManagement() {
 		<div className="space-y-6">
 			<div className="flex justify-between items-center">
 				<div>
-					<h2 className="text-2xl font-bold">مدیریت گروه‌های درسی</h2>
+					<h2 className="text-2xl font-bold">مدیریت دروس </h2>
 					<p className="text-neutral-600 dark:text-neutral-400">
 						{isLoading
 							? "در حال بارگذاری..."
-							: `${courseGroups?.length || 0} گروه درسی فعال در سیستم`}
+							: `${courseGroups?.length || 0}  درس فعال در سیستم`}
 					</p>
 				</div>
 				<Button
@@ -447,7 +484,7 @@ export default function CourseGroupsManagement() {
 
 			<div className="flex gap-4 items-center">
 				<Input
-					placeholder="جستجو در گروه‌های درسی..."
+					placeholder="جستجو در دروس..."
 					value={searchQuery}
 					onChange={(e) => handleSearch(e.target.value)}
 					startContent={<Search className="w-4 h-4 text-neutral-500" />}
@@ -459,13 +496,13 @@ export default function CourseGroupsManagement() {
 				<CardBody className="p-0">
 					<Table aria-label="لیست گروه‌های درسی">
 						<TableHeader>
-							<TableColumn>شماره گروه</TableColumn>
+							<TableColumn>شماره درس</TableColumn>
 							<TableColumn>درس</TableColumn>
 							<TableColumn>ثبت‌نام فعلی</TableColumn>
 							<TableColumn>استاد</TableColumn>
 							<TableColumn>عملیات</TableColumn>
 						</TableHeader>
-						<TableBody emptyContent="گروهی یافت نشد">
+						<TableBody emptyContent="درسی یافت نشد">
 							{(courseGroups || []).map((group) => (
 								<TableRow key={group.id}>
 									<TableCell>
@@ -544,7 +581,7 @@ export default function CourseGroupsManagement() {
 				<ModalContent>
 					{(onClose) => (
 						<>
-							<ModalHeader>افزودن گروه جدید</ModalHeader>
+							<ModalHeader>افزودن درس جدید</ModalHeader>
 							<ModalBody className="gap-4">
 								<Select
 									label="درس"
@@ -588,7 +625,7 @@ export default function CourseGroupsManagement() {
 									isDisabled={
 										isLoadingForm || !formData.courseId || !formData.professorId
 									}>
-									افزودن گروه
+									افزودن درس
 								</Button>
 							</ModalFooter>
 						</>
@@ -637,7 +674,7 @@ export default function CourseGroupsManagement() {
 													<TableColumn>وضعیت</TableColumn>
 												</TableHeader>
 												<TableBody>
-													{(students || []).map((student) => (
+													{students.map((student) => (
 														<TableRow key={student.id}>
 															<TableCell>
 																<Checkbox
@@ -856,7 +893,7 @@ export default function CourseGroupsManagement() {
 										onPress={handleEnrollUploadedUsers}
 										isLoading={isUploading}
 										startContent={<UserPlus className="w-4 h-4" />}>
-										ثبت‌نام {registeredUsers.length} دانشجو در گروه
+										ثبت‌نام {registeredUsers.length} دانشجو در درس
 									</Button>
 								)}
 							</ModalFooter>

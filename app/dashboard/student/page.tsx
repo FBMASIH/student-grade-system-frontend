@@ -4,6 +4,7 @@ import { TicketForm } from "@/components/TicketSystem/TicketForm"; // Import the
 import { TicketList } from "@/components/TicketSystem/TicketList";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
+import { StudentEnrollment } from "@/lib/types/enrollment";
 import { StudentObjection } from "@/lib/types/objection";
 import {
 	Button,
@@ -109,7 +110,7 @@ interface Objection {
 
 export default function StudentDashboard() {
 	const { token, user } = useAuthStore(); // Get user from auth store
-	const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+	const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
 	const [courses, setCourses] = useState<CourseWithGroups[]>([]);
 	const [error, setError] = useState("");
 	const [selectedEnrollment, setSelectedEnrollment] = useState<{
@@ -152,7 +153,8 @@ export default function StudentDashboard() {
 				api.getStudentObjections(studentId),
 			]);
 
-			//setEnrollments(enrollmentsRes.data);
+			setEnrollments(enrollmentsRes.data.enrollments); // Set enrollments correctly
+
 			setCourses(coursesRes.data);
 			setObjections(objectionsRes.data || []); // Set as direct array
 		} catch (err: any) {

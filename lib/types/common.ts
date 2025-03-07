@@ -1,10 +1,11 @@
-export interface PaginatedResponse {
-	items: any[];
+export interface PaginatedResponse<T = any> {
+	items: T[];
 	meta: {
-		total: number;
-		page: number;
-		limit: number;
+		totalItems: number;
+		itemCount: number;
+		itemsPerPage: number;
 		totalPages: number;
+		currentPage: number;
 	};
 }
 
@@ -21,6 +22,35 @@ export interface UserFilters {
 	limit: number;
 	search?: string;
 	role?: "admin" | "teacher" | "student" | ""; // Added role filter
+}
+
+export interface Group {
+	id: number;
+	name: string; // e.g., "FIATA-1"
+	createdAt: Date;
+}
+
+export interface Course {
+	id: number;
+	name: string; // e.g., "Mathematics"
+	code: string; // e.g., "MATH101"
+	units: number;
+	department?: string;
+}
+
+export interface CourseAssignment {
+	id: number;
+	groupId: number;
+	courseId: number;
+	professorId: number;
+	capacity: number;
+	currentEnrollment: number;
+	course: Course;
+	professor: {
+		id: number;
+		username: string;
+		role: string;
+	};
 }
 
 export interface Enrollment {
