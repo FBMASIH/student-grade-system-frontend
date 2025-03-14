@@ -14,14 +14,12 @@ import {
 	ModalHeader,
 	Select,
 	SelectItem,
-	Tab,
 	Table,
 	TableBody,
 	TableCell,
 	TableColumn,
 	TableHeader,
 	TableRow,
-	Tabs,
 	useDisclosure,
 } from "@nextui-org/react";
 import { useEffect, useState } from "react";
@@ -56,6 +54,11 @@ export default function AcademicGroupsManagement() {
 		isOpen: isManageGroupOpen,
 		onOpen: onManageGroupOpen,
 		onClose: onManageGroupClose,
+	} = useDisclosure();
+	const {
+		isOpen: isManageStudentsOpen,
+		onOpen: onManageStudentsOpen,
+		onClose: onManageStudentsClose,
 	} = useDisclosure();
 
 	useEffect(() => {
@@ -168,10 +171,14 @@ export default function AcademicGroupsManagement() {
 		if (!selectedAssignment) return;
 
 		try {
-			const userIds = usernames.map(username => {
-				const user = students.find(student => student.username === username);
-				return user ? user.id : null;
-			}).filter(id => id !== null) as number[];
+			const userIds = usernames
+				.map((username) => {
+					const user = students.find(
+						(student) => student.username === username
+					);
+					return user ? user.id : null;
+				})
+				.filter((id) => id !== null) as number[];
 			await courseAssignmentsApi.enrollStudents(selectedAssignment, userIds);
 			toast.success("Students added successfully");
 			fetchStudentsForAssignment(selectedAssignment);
@@ -184,12 +191,7 @@ export default function AcademicGroupsManagement() {
 		if (!selectedAssignment) return;
 
 		try {
-			// Instead of unenrollStudents, we'll use a DELETE request to remove students
-			// You may need to add this method to your API if it doesn't exist
 			await courseAssignmentsApi.enrollStudents(selectedAssignment, []);
-			// Or alternatively, if your API supports it:
-			// await api.removeStudentsFromCourseAssignment(selectedAssignment, studentIds);
-
 			toast.success("Students removed successfully");
 			fetchStudentsForAssignment(selectedAssignment);
 		} catch (err: any) {
@@ -318,170 +320,180 @@ export default function AcademicGroupsManagement() {
 						<>
 							<ModalHeader>مدیریت گروه {selectedGroup?.name}</ModalHeader>
 							<ModalBody>
-								<Tabs aria-label="مدیریت گروه" className="p-0">
-									<Tab key="courses" title="دروس">
-										<Table aria-label="دروس گروه">
-											<TableHeader>
-												<TableColumn>نام درس</TableColumn>
-												<TableColumn>استاد</TableColumn>
-												<TableColumn>ظرفیت</TableColumn>
-												<TableColumn>اقدامات</TableColumn>
-											</TableHeader>
-											<TableBody>
-												{assignments.map((assignment) => (
-													<TableRow key={assignment.id}>
-														<TableCell>{assignment.course.name}</TableCell>
-														<TableCell>
-															{assignment.professor.username}
-														</TableCell>
-														<TableCell>{assignment.capacity}</TableCell>
-														<TableCell>
-															<Button
-																color="danger"
-																size="sm"
-																onClick={() =>
-																	handleRemoveAssignment(assignment.id)
-																}>
-																حذف
-															</Button>
-														</TableCell>
-													</TableRow>
-												))}
-											</TableBody>
-										</Table>
-										<div className="mt-4 space-y-4">
-											<Select
-												label="درس"
-												value={formData.courseId}
-												onChange={(e) =>
-													setFormData((prev) => ({
-														...prev,
-														courseId: e.target.value,
-													}))
-												}>
-												{courses.map((course) => (
-													<SelectItem key={course.id} value={course.id}>
-														{course.name}
-													</SelectItem>
-												))}
-											</Select>
-											<Select
-												label="استاد"
-												value={formData.professorId}
-												onChange={(e) =>
-													setFormData((prev) => ({
-														...prev,
-														professorId: e.target.value,
-													}))
-												}>
-												{professors.map((prof) => (
-													<SelectItem key={prof.id} value={prof.id}>
-														{prof.username}
-													</SelectItem>
-												))}
-											</Select>
-											<Input
-												type="number"
-												label="ظرفیت"
-												value={formData.capacity}
-												onChange={(e) =>
-													setFormData((prev) => ({
-														...prev,
-														capacity: e.target.value,
-													}))
-												}
-											/>
-											<Button
-												color="primary"
-												onClick={handleCreateAssignment}
-												className="mt-4">
-												اضافه کردن درس
-											</Button>
-										</div>
-									</Tab>
-									<Tab key="students" title="دانشجویان">
-										<Select
-											label="درس"
-											value={selectedAssignment?.toString() || ""}
-											onChange={(e) => {
-												const assignmentId = parseInt(e.target.value);
-												setSelectedAssignment(assignmentId);
-												fetchStudentsForAssignment(assignmentId);
-											}}>
-											{assignments.map((assignment) => (
-												<SelectItem key={assignment.id} value={assignment.id}>
-													{assignment.course.name}
-												</SelectItem>
-											))}
-										</Select>
-										<Table aria-label="دانشجویان گروه">
-											<TableHeader>
-												<TableColumn>نام کاربری</TableColumn>
-												<TableColumn>وضعیت</TableColumn>
-												<TableColumn>اقدامات</TableColumn>
-											</TableHeader>
-											<TableBody>
-												{students.map((student) => (
-													<TableRow key={student.id}>
-														<TableCell>{student.username}</TableCell>
-														<TableCell>
-															{student.isEnrolled
-																? "ثبت‌نام شده"
-																: "ثبت‌نام نشده"}
-														</TableCell>
-														<TableCell>
-															<Button
-																color="danger"
-																size="sm"
-																onClick={() =>
-																	handleRemoveStudents([student.id])
-																}>
-																حذف
-															</Button>
-														</TableCell>
-													</TableRow>
-												))}
-											</TableBody>
-										</Table>
-										<div className="mt-4 space-y-4">
-											<Input
-												label="نام‌های کاربری دانشجویان (با کاما جدا کنید)"
-												placeholder="مثلاً student1, student2"
-												onChange={(e) =>
-													setFormData((prev) => ({
-														...prev,
-														studentUsernames: e.target.value,
-													}))
-												}
-											/>
-											<Button
-												color="primary"
-												onClick={() =>
-													handleAddStudents(
-														formData.studentUsernames
-															.split(",")
-															.map((username: string) => username.trim())
-													)
-												}
-												className="mt-4">
-												اضافه کردن دانشجو
-											</Button>
-											<div className="mt-4">
-												<Input
-													type="file"
-													accept=".xlsx, .xls"
-													onChange={handleImportStudents}
-												/>
-												<Button
-													color="primary"
-													onClick={handleAssignImportedStudents}
-													className="mt-4">
-													وارد کردن دانشجویان از اکسل
-												</Button>
-											</div>
-										</div>
-									</Tab>
-								</Tabs>
+								<Table aria-label="دروس گروه">
+									<TableHeader>
+										<TableColumn>نام درس</TableColumn>
+										<TableColumn>استاد</TableColumn>
+										<TableColumn>ظرفیت</TableColumn>
+										<TableColumn>اقدامات</TableColumn>
+									</TableHeader>
+									<TableBody>
+										{assignments.map((assignment) => (
+											<TableRow key={assignment.id}>
+												<TableCell>{assignment.course.name}</TableCell>
+												<TableCell>{assignment.professor.username}</TableCell>
+												<TableCell>{assignment.capacity}</TableCell>
+												<TableCell>
+													<Button
+														color="danger"
+														size="sm"
+														onClick={() =>
+															handleRemoveAssignment(assignment.id)
+														}>
+														حذف
+													</Button>
+													<Button
+														color="primary"
+														size="sm"
+														onClick={() => {
+															setSelectedAssignment(assignment.id);
+															fetchStudentsForAssignment(assignment.id);
+															onManageStudentsOpen();
+														}}>
+														مدیریت دانشجویان
+													</Button>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+								<div className="mt-4 space-y-4">
+									<Select
+										label="درس"
+										value={formData.courseId}
+										onChange={(e) =>
+											setFormData((prev) => ({
+												...prev,
+												courseId: e.target.value,
+											}))
+										}>
+										{courses.map((course) => (
+											<SelectItem key={course.id} value={course.id}>
+												{course.name}
+											</SelectItem>
+										))}
+									</Select>
+									<Select
+										label="استاد"
+										value={formData.professorId}
+										onChange={(e) =>
+											setFormData((prev) => ({
+												...prev,
+												professorId: e.target.value,
+											}))
+										}>
+										{professors.map((prof) => (
+											<SelectItem key={prof.id} value={prof.id}>
+												{prof.username}
+											</SelectItem>
+										))}
+									</Select>
+									<Input
+										type="number"
+										label="ظرفیت"
+										value={formData.capacity}
+										onChange={(e) =>
+											setFormData((prev) => ({
+												...prev,
+												capacity: e.target.value,
+											}))
+										}
+									/>
+									<Button
+										color="primary"
+										onClick={handleCreateAssignment}
+										className="mt-4">
+										اضافه کردن درس
+									</Button>
+								</div>
+							</ModalBody>
+							<ModalFooter>
+								<Button color="danger" variant="light" onPress={onClose}>
+									لغو
+								</Button>
+							</ModalFooter>
+						</>
+					)}
+				</ModalContent>
+			</Modal>
+
+			{/* Manage Students Modal */}
+			<Modal
+				isOpen={isManageStudentsOpen}
+				onClose={onManageStudentsClose}
+				size="lg">
+				<ModalContent>
+					{(onClose) => (
+						<>
+							<ModalHeader>
+								مدیریت دانشجویان برای درس{" "}
+								{selectedAssignment &&
+									assignments.find((a) => a.id === selectedAssignment)?.course
+										.name}
+							</ModalHeader>
+							<ModalBody>
+								<Table aria-label="دانشجویان گروه">
+									<TableHeader>
+										<TableColumn>نام کاربری</TableColumn>
+										<TableColumn>وضعیت</TableColumn>
+										<TableColumn>اقدامات</TableColumn>
+									</TableHeader>
+									<TableBody>
+										{students.map((student) => (
+											<TableRow key={student.id}>
+												<TableCell>{student.username}</TableCell>
+												<TableCell>
+													{student.isEnrolled ? "ثبت‌نام شده" : "ثبت‌نام نشده"}
+												</TableCell>
+												<TableCell>
+													<Button
+														color="danger"
+														size="sm"
+														onClick={() => handleRemoveStudents([student.id])}>
+														حذف
+													</Button>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+								<div className="mt-4 space-y-4">
+									<Input
+										label="نام‌های کاربری دانشجویان (با کاما جدا کنید)"
+										placeholder="مثلاً student1, student2"
+										onChange={(e) =>
+											setFormData((prev) => ({
+												...prev,
+												studentUsernames: e.target.value,
+											}))
+										}
+									/>
+									<Button
+										color="primary"
+										onClick={() =>
+											handleAddStudents(
+												formData.studentUsernames
+													.split(",")
+													.map((username: string) => username.trim())
+											)
+										}
+										className="mt-4">
+										اضافه کردن دانشجو
+									</Button>
+									<div className="mt-4">
+										<Input
+											type="file"
+											accept=".xlsx, .xls"
+											onChange={handleImportStudents}
+										/>
+										<Button
+											color="primary"
+											onClick={handleAssignImportedStudents}
+											className="mt-4">
+											وارد کردن دانشجویان از اکسل
+										</Button>
+									</div>
+								</div>
 							</ModalBody>
 							<ModalFooter>
 								<Button color="danger" variant="light" onPress={onClose}>
@@ -495,5 +507,3 @@ export default function AcademicGroupsManagement() {
 		</div>
 	);
 }
-
-// Update the API interface (add this to your api.ts file)
