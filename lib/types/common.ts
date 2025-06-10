@@ -77,3 +77,31 @@ export interface Enrollment {
 	createdAt: Date;
 	isActive: boolean;
 }
+
+export interface Student {
+	id: number;
+	username: string;
+	firstName: string;
+	lastName: string;
+	isEnrolled?: boolean;
+}
+
+export interface CourseAssignmentStudents {
+	enrolled: Student[];
+	available: Student[];
+}
+
+export interface StudentWithEnrollment {
+	id: number;
+	username: string;
+	firstName: string;
+	lastName: string;
+	isEnrolled: boolean;
+	enrollmentId?: number;
+}
+
+export interface StudentEnrollmentResponse {
+	total: number;
+	enrolled: StudentWithEnrollment[];
+	available: StudentWithEnrollment[];
+}

@@ -232,16 +232,122 @@ export const courseAssignmentsApi = {
 		axiosInstance.delete(`/course-assignments/${id}`),
 
 	// Student enrollment
-	enrollStudents: (assignmentId: number, studentIds: number[]) =>
-		axiosInstance.post(`/course-assignments/${assignmentId}/students`, {
-			studentIds,
-		}),
+	// enrollStudents: (assignmentId: number, studentIds: number[]) =>
+	// 	axiosInstance.post(`/course-assignments/${assignmentId}/students`, {
+	// 		studentIds,
+	// 	}),
 
 	// Add this new method
 	removeStudentsFromAssignment: (assignmentId: number, studentIds: number[]) =>
 		axiosInstance.delete(`/course-assignments/${assignmentId}/students`, {
 			data: { studentIds },
 		}),
+
+	// Get all students for a specific course assignment
+	getAssignmentStudents: (assignmentId: number) =>
+		axiosInstance.get<{
+			enrolled: Array<{
+				id: number;
+				username: string;
+				firstName: string;
+				lastName: string;
+			}>;
+			available: Array<{
+				id: number;
+				username: string;
+				firstName: string;
+				lastName: string;
+			}>;
+		}>(`/course-assignments/${assignmentId}/students`),
+
+	// Get available students who can be added to the course
+	getAvailableStudents: (assignmentId: number, search?: string) =>
+		axiosInstance.get<{
+			students: Array<{
+				id: number;
+				username: string;
+				firstName: string;
+				lastName: string;
+			}>;
+		}>(`/course-assignments/${assignmentId}/available-students`, {
+			params: { search },
+		}),
+
+	// Add students to course assignment
+	enrollStudents: (assignmentId: number, studentIds: number[]) =>
+		axiosInstance.post(`/course-assignments/${assignmentId}/enroll`, {
+			studentIds,
+		}),
+
+	// Remove students from course assignment
+	unenrollStudents: (assignmentId: number, studentIds: number[]) =>
+		axiosInstance.post(`/course-assignments/${assignmentId}/unenroll`, {
+			studentIds,
+		}),
+
+	// Get all students with enrollment status
+	getAllStudentsWithStatus: (assignmentId: number, page = 1, limit = 10) =>
+		axiosInstance.get<{
+			students: Array<{
+				id: number;
+				username: string;
+				firstName: string;
+				lastName: string;
+				isEnrolled: boolean;
+				enrollmentId?: number;
+				enrolledCourses?: Array<{
+					id: number;
+					name: string;
+				}>;
+			}>;
+			total: number;
+		}>(`/course-assignments/${assignmentId}/all-students`, {
+			params: { page, limit },
+		}),
+
+	// Search through all students (both enrolled and available)
+	searchStudents: (assignmentId: number, query: string) =>
+		axiosInstance.get<{
+			students: Array<{
+				id: number;
+				username: string;
+				firstName: string;
+				lastName: string;
+				isEnrolled: boolean;
+				enrollmentId?: number;
+			}>;
+		}>(`/course-assignments/${assignmentId}/search-students`, {
+			params: { query },
+		}),
+
+	// Bulk enroll/unenroll operations
+	bulkEnrollStudents: (assignmentId: number, studentIds: number[]) =>
+		axiosInstance.post(`/course-assignments/${assignmentId}/bulk-enroll`, {
+			studentIds,
+		}),
+
+	bulkUnenrollStudents: (assignmentId: number, studentIds: number[]) =>
+		axiosInstance.post(`/course-assignments/${assignmentId}/bulk-unenroll`, {
+			studentIds,
+		}),
+
+	bulkEnrollInCourses: (data: {
+		studentIds: number[];
+		courseIds: number[];
+		groupId: number;
+	}) => axiosInstance.post("/course-assignments/bulk-enroll-courses", data),
+
+	// Excel import specific endpoint
+	importStudentsFromExcel: (assignmentId: number, formData: FormData) =>
+		axiosInstance.post(
+			`/course-assignments/${assignmentId}/import-students`,
+			formData,
+			{
+				headers: {
+					"Content-Type": "multipart/form-data",
+				},
+			}
+		),
 };
 
 export const api = {
