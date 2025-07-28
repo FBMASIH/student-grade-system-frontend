@@ -7,26 +7,21 @@ export interface Student {
 
 export interface StudentEnrollment {
 	id: number;
-	courseId: number;
-	courseName: string;
-	courseCode: string;
-	groupNumber: number;
-	score: number | null; // Now 0-100 range
 	student: {
 		id: number;
 		username: string;
-	};
-	course: {
-		id: number;
-		name: string;
+		firstName: string;
+		lastName: string;
 	};
 	group: {
 		id: number;
-		name: string;
+		groupNumber: number;
 		course: {
+			id: number;
 			name: string;
 		};
 	};
+	score: number | null;
 }
 
 export interface ScoreResponse {
