@@ -409,7 +409,24 @@ export const api = {
 	// Unified endpoints for score management
 	getStudentEnrollments: (studentId: string | number) =>
 		axiosInstance.get<{
-			enrollments: StudentEnrollment[];
+			enrollments: Array<{
+				id: number;
+				student: {
+					id: number;
+					username: string;
+					firstName: string;
+					lastName: string;
+				};
+				group: {
+					id: number;
+					groupNumber: number;
+					course: {
+						id: number;
+						name: string;
+					};
+				};
+				score: number | null;
+			}>;
 		}>(`/enrollments/${studentId}/details`),
 
 	updateStudentScore: (enrollmentId: number, score: number) =>
