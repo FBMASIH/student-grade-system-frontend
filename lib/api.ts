@@ -600,8 +600,10 @@ export const api = {
 		),
 	updateScore: (enrollmentId: number, score: number) =>
 		axiosInstance.put(`/enrollments/${enrollmentId}/score`, { score }),
-	submitGroupScores: (groupId: number, scores: Array<{ studentId: number; score: number }>) =>
-		axiosInstance.post(`/groups/${groupId}/scores`, { scores }),
+	submitGroupScores: (
+		groupId: number,
+		scores: Array<{ studentId: number; score: number }>
+	) => axiosInstance.post(`/groups/${groupId}/scores`, { scores }),
 };
 
 // Export the axios instance if needed elsewhere
