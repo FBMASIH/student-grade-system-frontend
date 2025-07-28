@@ -11,7 +11,7 @@ import { StudentObjection } from "./types/objection";
 
 // Create base axios instance with CORS settings
 const axiosInstance = axios.create({
-	baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
+	baseURL: process.env.NEXT_PUBLIC_API_URL || "http://185.105.184.157:3001",
 	withCredentials: true,
 	headers: {
 		"Content-Type": "application/json",
