@@ -373,6 +373,8 @@ export const api = {
 		axiosInstance.get<PaginatedResponse<Course>>(`/courses`, {
 			params: { page, limit, search },
 		}),
+	createEnrollment: (studentId: number, groupId: number) =>
+		axiosInstance.post("/enrollments", { studentId, groupId }),
 	createCourse: (data: {
 		name: string;
 		code: string;
