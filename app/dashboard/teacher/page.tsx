@@ -53,14 +53,23 @@ export default function TeacherDashboard() {
 			if (selectedGroup) {
 				const enrollmentsRes = await api.getStudentEnrollments(selectedGroup);
 				const mappedEnrollments: StudentEnrollment[] =
-					enrollmentsRes.data.enrollments.map((e) => ({
-						...e,
-						student: e.student || { id: 0, name: "نامشخص" },
-						group: e.group || {
+					enrollmentsRes.data.enrollments.map((e: any) => ({
+						id: e.id,
+						student: e.student || {
 							id: 0,
-							name: "",
-							course: { name: e.courseName },
+							username: "نامشخص",
+							firstName: "",
+							lastName: "",
 						},
+						group: {
+							id: e.group?.id || 0,
+							groupNumber: e.group?.groupNumber || 0,
+							course: {
+								id: e.group?.course?.id || 0,
+								name: e.group?.course?.name || "نامشخص",
+							},
+						},
+						score: e.score,
 					}));
 				setEnrollments(mappedEnrollments);
 			}
@@ -230,11 +239,14 @@ export default function TeacherDashboard() {
 												<TableCell className="font-medium">
 													{enrollment.group.course.name}
 												</TableCell>
-												<TableCell>{enrollment.student.name}</TableCell>
+												<TableCell>
+													{enrollment.student.firstName}{" "}
+													{enrollment.student.lastName}
+												</TableCell>
 												<TableCell>{enrollment.score}</TableCell>
 												<TableCell>
 													<p className="max-w-xs truncate">
-														{enrollment.group.name}
+														{enrollment.group.groupNumber}
 													</p>
 												</TableCell>
 												<TableCell>
