@@ -467,28 +467,31 @@ export const api = {
 		}),
 
 	// User Management
-	getUsers: (
-		page: number = 1,
-		limit: number = 10,
-		search?: string,
-		role?: string
-	) =>
-		axiosInstance.get<
-			PaginatedResponse<{
-				id: number;
-				username: string;
-				firstName: string;
-				lastName: string;
-				role: string;
-			}>
-		>("/users", {
-			params: {
-				page,
-				limit,
-				search,
-				role,
-			},
-		}),
+        getUsers: (
+                page: number = 1,
+                limit: number = 10,
+                search?: string,
+                role?: string,
+                groupId?: string
+        ) =>
+                axiosInstance.get<
+                        PaginatedResponse<{
+                                id: number;
+                                username: string;
+                                firstName: string;
+                                lastName: string;
+                                role: string;
+                                groupName?: string;
+                        }>
+                >("/users", {
+                        params: {
+                                page,
+                                limit,
+                                search,
+                                role,
+                                groupId,
+                        },
+                }),
 	updateUserRole: (id: number, role: string) =>
 		axiosInstance.patch(`/users/${id}/role`, { role }),
 	deleteUser: (id: number) => axiosInstance.delete(`/users/${id}`),
