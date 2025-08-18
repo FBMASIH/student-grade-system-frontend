@@ -509,11 +509,17 @@ export const api = {
 			lastName,
 			role,
 		}),
-        uploadUsersExcel: (formData: FormData, role?: string, groupId?: number) =>
+        uploadUsersExcel: (
+                formData: FormData,
+                role?: string,
+                groupId?: number,
+                dryRun?: boolean
+        ) =>
                 axiosInstance.post("/users/upload-excel", formData, {
                         params: {
                                 ...(role && { role }),
                                 ...(groupId && { groupId }),
+                                ...(dryRun && { dryRun }),
                         },
                         headers: { "Content-Type": "multipart/form-data" },
                 }),
