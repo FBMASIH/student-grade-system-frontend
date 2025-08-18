@@ -467,46 +467,46 @@ export default function CourseGroupsManagement() {
 		<div className="space-y-6">
 			<div className="flex justify-between items-center">
 				<div>
-					<h2 className="text-2xl font-bold">مدیریت دروس </h2>
-					<p className="text-neutral-600 dark:text-neutral-400">
-						{isLoading
-							? "در حال بارگذاری..."
-							: `${courseGroups?.length || 0}  درس فعال در سیستم`}
-					</p>
-				</div>
-				<Button
-					color="primary"
-					startContent={<Plus className="w-4 h-4" />}
-					onPress={onOpen}>
-					افزودن گروه جدید
-				</Button>
-			</div>
+                                        <h2 className="text-2xl font-bold">مدیریت گروه‌های درسی</h2>
+                                        <p className="text-neutral-600 dark:text-neutral-400">
+                                                {isLoading
+                                                        ? "در حال بارگذاری..."
+                                                        : `${courseGroups?.length || 0} گروه درسی فعال در سیستم`}
+                                        </p>
+                                </div>
+                                <Button
+                                        color="primary"
+                                        startContent={<Plus className="w-4 h-4" />}
+                                        onPress={onOpen}>
+                                        افزودن گروه درسی جدید
+                                </Button>
+                        </div>
 
-			<div className="flex gap-4 items-center">
-				<Input
-					placeholder="جستجو در دروس..."
-					value={searchQuery}
-					onChange={(e) => handleSearch(e.target.value)}
-					startContent={<Search className="w-4 h-4 text-neutral-500" />}
-					className="w-full max-w-xs"
-				/>
-			</div>
+                        <div className="flex gap-4 items-center">
+                                <Input
+                                        placeholder="جستجو در گروه‌های درسی..."
+                                        value={searchQuery}
+                                        onChange={(e) => handleSearch(e.target.value)}
+                                        startContent={<Search className="w-4 h-4 text-neutral-500" />}
+                                        className="w-full max-w-xs"
+                                />
+                        </div>
 
 			<Card className="border border-neutral-200/50 dark:border-neutral-800/50">
 				<CardBody className="p-0">
-					<Table aria-label="لیست گروه‌های درسی">
-						<TableHeader>
-							<TableColumn>شماره درس</TableColumn>
-							<TableColumn>درس</TableColumn>
-							<TableColumn>ثبت‌نام فعلی</TableColumn>
-							<TableColumn>استاد</TableColumn>
-							<TableColumn>عملیات</TableColumn>
-						</TableHeader>
-						<TableBody emptyContent="درسی یافت نشد">
-							{(courseGroups || []).map((group) => (
-								<TableRow key={group.id}>
-									<TableCell>
-										<Chip
+                                        <Table aria-label="لیست گروه‌های درسی">
+                                                <TableHeader>
+                                                        <TableColumn>شماره درس</TableColumn>
+                                                        <TableColumn>درس</TableColumn>
+                                                        <TableColumn>ثبت‌نام فعلی</TableColumn>
+                                                        <TableColumn>استاد</TableColumn>
+                                                        <TableColumn>عملیات</TableColumn>
+                                                </TableHeader>
+                                                <TableBody emptyContent="گروه درسی یافت نشد">
+                                                        {(courseGroups || []).map((group) => (
+                                                                <TableRow key={group.id}>
+                                                                        <TableCell>
+                                                                                <Chip
 											variant="flat"
 											color="primary"
 											className="cursor-pointer transition-all hover:opacity-80"
@@ -576,17 +576,17 @@ export default function CourseGroupsManagement() {
 				</div>
 			)}
 
-			{/* Add Course Group Modal */}
-			<Modal isOpen={isOpen} onClose={onClose}>
-				<ModalContent>
-					{(onClose) => (
-						<>
-							<ModalHeader>افزودن درس جدید</ModalHeader>
-							<ModalBody className="gap-4">
-								<Select
-									label="درس"
-									value={formData.courseId}
-									onChange={(e) =>
+                        {/* Add Course Group Modal */}
+                        <Modal isOpen={isOpen} onClose={onClose}>
+                                <ModalContent>
+                                        {(onClose) => (
+                                                <>
+                                                        <ModalHeader>افزودن گروه درسی جدید</ModalHeader>
+                                                        <ModalBody className="gap-4">
+                                                                <Select
+                                                                        label="درس"
+                                                                        value={formData.courseId}
+                                                                        onChange={(e) =>
 										setFormData({ ...formData, courseId: e.target.value })
 									}
 									isLoading={isLoadingForm}>
@@ -618,20 +618,20 @@ export default function CourseGroupsManagement() {
 								<Button color="danger" variant="light" onPress={onClose}>
 									انصراف
 								</Button>
-								<Button
-									color="primary"
-									onPress={handleCreateGroup}
-									isLoading={isLoadingForm}
-									isDisabled={
-										isLoadingForm || !formData.courseId || !formData.professorId
-									}>
-									افزودن درس
-								</Button>
-							</ModalFooter>
-						</>
-					)}
-				</ModalContent>
-			</Modal>
+                                                                <Button
+                                                                        color="primary"
+                                                                        onPress={handleCreateGroup}
+                                                                        isLoading={isLoadingForm}
+                                                                        isDisabled={
+                                                                                isLoadingForm || !formData.courseId || !formData.professorId
+                                                                        }>
+                                                                        افزودن گروه
+                                                                </Button>
+                                                        </ModalFooter>
+                                                </>
+                                        )}
+                                </ModalContent>
+                        </Modal>
 
 			{/* Manage Students Modal */}
 			<Modal

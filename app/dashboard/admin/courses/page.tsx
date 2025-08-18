@@ -49,14 +49,12 @@ export default function CoursesManagement() {
 	const [totalPages, setTotalPages] = useState(1);
         const [searchQuery, setSearchQuery] = useState("");
         const debouncedSearch = useDebounce(searchQuery, 500);
-	const [formData, setFormData] = useState({
-		name: "",
-		code: "",
-		units: "",
-		department: "",
-		groupId: 0,
-		professorId: 0,
-	});
+        const [formData, setFormData] = useState({
+                name: "",
+                code: "",
+                units: "",
+                department: "",
+        });
 	const [error, setError] = useState("");
 	const { isOpen, onOpen, onClose } = useDisclosure();
 	const [isLoading, setIsLoading] = useState(true);
@@ -107,8 +105,6 @@ export default function CoursesManagement() {
                                 code: "",
                                 units: "",
                                 department: "",
-                                groupId: 0,
-                                professorId: 0,
                         });
                         setError("");
                 } catch (err: any) {
