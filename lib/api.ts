@@ -10,12 +10,13 @@ import {
 import { StudentObjection } from "./types/objection";
 
 // Create base axios instance with CORS settings
+// Use environment variable for API URL to allow deployment flexibility
 const axiosInstance = axios.create({
-	baseURL: "http://185.105.184.157:3001",
-	withCredentials: true,
-	headers: {
-		"Content-Type": "application/json",
-	},
+        baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
+        withCredentials: true,
+        headers: {
+                "Content-Type": "application/json",
+        },
 });
 
 // Add interceptors
@@ -89,85 +90,85 @@ interface GroupStudentStatus {
 }
 
 export const courseGroupsApi = {
-	getAllGroups: (page = 1, limit = 10, search?: string) =>
-		axiosInstance.get<PaginatedResponse<GroupResponse>>("/groups", {
-			params: { page, limit, search },
-		}),
+        getAllGroups: (page = 1, limit = 10, search?: string) =>
+                axiosInstance.get<PaginatedResponse<GroupResponse>>("/course-groups", {
+                        params: { page, limit, search },
+                }),
 
-	getGroupById: (id: number) =>
-		axiosInstance.get<GroupResponse>(`/groups/${id}`),
+        getGroupById: (id: number) =>
+                axiosInstance.get<GroupResponse>(`/course-groups/${id}`),
 
-	createGroup: (data: {
-		courseId: number;
-		professorId: number;
-		capacity?: number;
-	}) => axiosInstance.post<GroupResponse>("/groups", data),
+        createGroup: (data: {
+                courseId: number;
+                professorId: number;
+                capacity?: number;
+        }) => axiosInstance.post<GroupResponse>("/course-groups", data),
 
-	updateGroup: (
-		id: number,
-		data: {
-			courseId?: number;
-			professorId?: number;
-			capacity?: number;
-		}
-	) => axiosInstance.patch<GroupResponse>(`/groups/${id}`, data),
+        updateGroup: (
+                id: number,
+                data: {
+                        courseId?: number;
+                        professorId?: number;
+                        capacity?: number;
+                }
+        ) => axiosInstance.patch<GroupResponse>(`/course-groups/${id}`, data),
 
-	deleteGroup: (id: number) => axiosInstance.delete(`/groups/${id}`),
+        deleteGroup: (id: number) => axiosInstance.delete(`/course-groups/${id}`),
 
-	// Group Students Management
-	getGroupStudents: (groupId: number) =>
-		axiosInstance.get<{
-			students: Array<{
-				id: number;
-				username: string;
-				isEnrolled: boolean;
-				canEnroll: boolean;
-			}>;
-			groupInfo: {
-				id: number;
-				groupNumber: number;
-				courseName: string;
-				capacity: number;
-				currentEnrollment: number;
-			};
-		}>(`/groups/${groupId}/students`),
+        // Group Students Management
+        getGroupStudents: (groupId: number) =>
+                axiosInstance.get<{
+                        students: Array<{
+                                id: number;
+                                username: string;
+                                isEnrolled: boolean;
+                                canEnroll: boolean;
+                        }>;
+                        groupInfo: {
+                                id: number;
+                                groupNumber: number;
+                                courseName: string;
+                                capacity: number;
+                                currentEnrollment: number;
+                        };
+                }>(`/course-groups/${groupId}/students`),
 
-	addStudentsToGroup: (groupId: number, studentIds: number[]) =>
-		axiosInstance.post(`/groups/${groupId}/students`, { studentIds }),
+        addStudentsToGroup: (groupId: number, studentIds: number[]) =>
+                axiosInstance.post(`/course-groups/${groupId}/students`, { studentIds }),
 
-	removeStudentsFromGroup: (groupId: number, studentIds: number[]) =>
-		axiosInstance.delete(`/groups/${groupId}/students`, {
-			data: { studentIds },
-		}),
+        removeStudentsFromGroup: (groupId: number, studentIds: number[]) =>
+                axiosInstance.delete(`/course-groups/${groupId}/students`, {
+                        data: { studentIds },
+                }),
 
-	// Bulk Operations
-	bulkEnrollStudents: (groupId: number, usernames: string[]) =>
-		axiosInstance.post<{
-			successful: Array<{ username: string }>;
-			errors: Array<{ username: string; reason: string }>;
-		}>(`/groups/${groupId}/bulk-enroll`, { usernames }),
+        // Bulk Operations
+        bulkEnrollStudents: (groupId: number, usernames: string[]) =>
+                axiosInstance.post<{
+                        successful: Array<{ username: string }>;
+                        errors: Array<{ username: string; reason: string }>;
+                }>(`/course-groups/${groupId}/bulk-enroll`, { usernames }),
 
-	// Search students for group
-	searchAvailableStudents: (groupId: number, query?: string) =>
-		axiosInstance.get<{
-			students: Array<{
-				id: number;
-				username: string;
-				firstName: string;
-				lastName: string;
-				isEnrolled: boolean;
-				canEnroll: boolean;
-			}>;
-		}>(`/groups/${groupId}/available-students`, {
-			params: { search: query },
-		}),
+        // Search students for group
+        searchAvailableStudents: (groupId: number, query?: string) =>
+                axiosInstance.get<{
+                        students: Array<{
+                                id: number;
+                                username: string;
+                                firstName: string;
+                                lastName: string;
+                                isEnrolled: boolean;
+                                canEnroll: boolean;
+                        }>;
+                }>(`/course-groups/${groupId}/available-students`, {
+                        params: { search: query },
+                }),
 
-	// Add this new method
-	addStudentsToGroupByUsername: (groupId: number, usernames: string[]) =>
-		axiosInstance.post<{
-			successful: Array<{ username: string }>;
-			errors: Array<{ username: string; reason: string }>;
-		}>(`/groups/${groupId}/students/usernames`, { usernames }),
+        // Add this new method
+        addStudentsToGroupByUsername: (groupId: number, usernames: string[]) =>
+                axiosInstance.post<{
+                        successful: Array<{ username: string }>;
+                        errors: Array<{ username: string; reason: string }>;
+                }>(`/course-groups/${groupId}/students/usernames`, { usernames }),
 };
 
 export const groupsApi = {
