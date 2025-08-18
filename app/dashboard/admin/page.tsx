@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { QuickStats } from "../../../components/QuickStats";
 import { UsersManagement } from "../../../components/UsersManagement";
 import CourseGroupsManagement from "./course-groups/page";
+import CoursesManagement from "./courses/page";
 import EnrollmentsManagement from "./enrollments/page";
 import AdminScoreManagement from "./scores/page";
 
@@ -120,12 +121,22 @@ export default function AdminDashboard() {
                                                         </Tab>
 
                                                         <Tab
+                                                                key="courses"
+                                                                title={
+                                                                        <div className="flex items-center gap-2">
+                                                                                <BookOpen className="w-4 h-4" />
+                                                                                <span>دروس</span>
+                                                                        </div>
+                                                                }>
+                                                                <CoursesManagement />
+                                                        </Tab>
+
+                                                        <Tab
                                                                 key="course-groups"
                                                                 title={
                                                                         <div className="flex items-center gap-2">
                                                                                 <BookOpen className="w-4 h-4" />
-
-                                                                                <span> درس</span>
+                                                                                <span>گروه‌های درسی</span>
                                                                         </div>
                                                                 }>
                                                                 <CourseGroupsManagement />
