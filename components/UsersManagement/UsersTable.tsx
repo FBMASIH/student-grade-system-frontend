@@ -128,81 +128,136 @@ export function UsersTable({
 		initialData,
 	});
 
-	const [uploadProgress, setUploadProgress] = useState(0);
-	const [error, setError] = useState<string | null>(null);
-	const [isUploading, setIsUploading] = useState(false);
-	const [uploadResponse, setUploadResponse] =
-		useState<ExcelUploadResponse | null>(null);
-	const [isUploadExcelOpen, setIsUploadExcelOpen] = useState(false);
+        const [uploadProgress, setUploadProgress] = useState(0);
+        const [error, setError] = useState<string | null>(null);
+        const [isUploading, setIsUploading] = useState(false);
+        const [uploadResponse, setUploadResponse] =
+                useState<ExcelUploadResponse | null>(null);
+        const [isUploadExcelOpen, setIsUploadExcelOpen] = useState(false);
+        const [selectedFile, setSelectedFile] = useState<File | null>(null);
+        const [isConfirming, setIsConfirming] = useState(false);
 
-	const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (!file) return;
+        const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
 
-		const formData = new FormData();
-		formData.append("file", file);
+                setSelectedFile(file);
+                const formData = new FormData();
+                formData.append("file", file);
 
-		setIsUploading(true);
-		setUploadProgress(0);
+                setIsUploading(true);
+                setUploadProgress(0);
 
-		try {
-			const response = await api.uploadUsersExcel(formData);
-			setUploadResponse(response.data);
+                try {
+                        const response = await api.uploadUsersExcel(formData, undefined, undefined, true);
+                        setUploadResponse(response.data);
 
-			// Show success messages
-			if (response.data.reactivated.length > 0) {
-				toast.success(
-					`${response.data.reactivated.length} کاربر با موفقیت فعال شد`
-				);
-			}
+                        // Show warnings for duplicates
+                        if (response.data.duplicates.length > 0) {
+                                response.data.duplicates.forEach(
+                                        (duplicate: { username: any; message: any }) => {
+                                                toast.warning(`${duplicate.username}: ${duplicate.message}`);
+                                        }
+                                );
+                        }
 
-			// Show warnings for duplicates
-			if (response.data.duplicates.length > 0) {
-				response.data.duplicates.forEach(
-					(duplicate: { username: any; message: any }) => {
-						toast.warning(`${duplicate.username}: ${duplicate.message}`);
-					}
-				);
-			}
+                        // Show errors if any
+                        if (response.data.errors.length > 0) {
+                                response.data.errors.forEach(
+                                        (
+                                                error:
+                                                        | string
+                                                        | number
+                                                        | bigint
+                                                        | boolean
+                                                        | ReactElement<any, string | JSXElementConstructor<any>>
+                                                        | Iterable<ReactNode>
+                                                        | ReactPortal
+                                                        | Promise<AwaitedReactNode>
+                                                        | (() => React.ReactNode)
+                                                        | null
+                                                        | undefined
+                                        ) => {
+                                                toast.error(error);
+                                        }
+                                );
+                        }
+                } catch (error: unknown) {
+                        if (error instanceof Error) {
+                                setError(error.message);
+                                toast.error(error.message);
+                        }
+                } finally {
+                        setIsUploading(false);
+                }
+        };
 
-			// Show errors if any
-			if (response.data.errors.length > 0) {
-				response.data.errors.forEach(
-					(
-						error:
-							| string
-							| number
-							| bigint
-							| boolean
-							| ReactElement<any, string | JSXElementConstructor<any>>
-							| Iterable<ReactNode>
-							| ReactPortal
-							| Promise<AwaitedReactNode>
-							| (() => React.ReactNode)
-							| null
-							| undefined
-					) => {
-						toast.error(error);
-					}
-				);
-			}
+        const handleConfirmUpload = async () => {
+                if (!selectedFile) return;
 
-			// Refresh users list if any changes were made
-			if (
-				response.data.reactivated.length > 0 ||
-				response.data.users.length > 0
-			) {
-				fetchUsers(filters);
-			}
-		} catch (error: unknown) {
-			if (error instanceof Error) {
-				setError(error.message);
-				toast.error(error.message);
-			}
-		} finally {
-			setIsUploading(false);
-		}
-	};
+                const formData = new FormData();
+                formData.append("file", selectedFile);
+
+                setIsConfirming(true);
+                try {
+                        const response = await api.uploadUsersExcel(formData);
+                        setUploadResponse(response.data);
+
+                        if (response.data.reactivated.length > 0) {
+                                toast.success(
+                                        `${response.data.reactivated.length} کاربر با موفقیت فعال شد`
+                                );
+                        }
+
+                        if (response.data.duplicates.length > 0) {
+                                response.data.duplicates.forEach(
+                                        (duplicate: { username: any; message: any }) => {
+                                                toast.warning(`${duplicate.username}: ${duplicate.message}`);
+                                        }
+                                );
+                        }
+
+                        if (response.data.errors.length > 0) {
+                                response.data.errors.forEach(
+                                        (
+                                                error:
+                                                        | string
+                                                        | number
+                                                        | bigint
+                                                        | boolean
+                                                        | ReactElement<any, string | JSXElementConstructor<any>>
+                                                        | Iterable<ReactNode>
+                                                        | ReactPortal
+                                                        | Promise<AwaitedReactNode>
+                                                        | (() => React.ReactNode)
+                                                        | null
+                                                        | undefined
+                                        ) => {
+                                                toast.error(error);
+                                        }
+                                );
+                        }
+
+                        if (
+                                response.data.reactivated.length > 0 ||
+                                response.data.users.length > 0
+                        ) {
+                                fetchUsers(filters);
+                        }
+
+                        setIsUploadExcelOpen(false);
+                        setUploadResponse(null);
+                        setSelectedFile(null);
+                        setError(null);
+                } catch (error: unknown) {
+                        if (error instanceof Error) {
+                                setError(error.message);
+                                toast.error(error.message);
+                        }
+                } finally {
+                        setIsConfirming(false);
+                }
+        };
 
         useEffect(() => {
                 if (searchTimeout.current) {
@@ -453,13 +508,14 @@ export function UsersTable({
 			)}
 
 			<Modal
-				isOpen={isUploadExcelOpen}
-				onClose={() => {
-					setIsUploadExcelOpen(false);
-					setUploadResponse(null);
-					setError(null);
-				}}
-				size="3xl">
+                                isOpen={isUploadExcelOpen}
+                                onClose={() => {
+                                        setIsUploadExcelOpen(false);
+                                        setUploadResponse(null);
+                                        setError(null);
+                                        setSelectedFile(null);
+                                }}
+                                size="3xl">
 				<ModalContent>
 					{(onClose) => (
 						<>
@@ -570,20 +626,19 @@ export function UsersTable({
 								</div>
 							</ModalBody>
 							<ModalFooter>
-								<Button color="danger" variant="light" onPress={onClose}>
-									بستن
-								</Button>
-								{uploadResponse && (
-									<Button
-										color="success"
-										onPress={() => {
-											fetchUsers(filters);
-											onClose();
-										}}>
-										تایید و به روزرسانی
-									</Button>
-								)}
-							</ModalFooter>
+                                                                <Button color="danger" variant="light" onPress={onClose}>
+                                                                        بستن
+                                                                </Button>
+                                                                {uploadResponse && (
+                                                                        <Button
+                                                                                color="success"
+                                                                                onPress={handleConfirmUpload}
+                                                                                isDisabled={!selectedFile}
+                                                                                isLoading={isConfirming}>
+                                                                                تایید و به روزرسانی
+                                                                        </Button>
+                                                                )}
+                                                        </ModalFooter>
 						</>
 					)}
 				</ModalContent>
