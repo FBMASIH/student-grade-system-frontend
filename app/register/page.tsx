@@ -2,7 +2,7 @@
 
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
-import { Button, Card, CardBody, Input } from "@nextui-org/react";
+import { Button, Card, CardBody, CircularProgress, Input } from "@nextui-org/react";
 import { ArrowRight, Lock, User, UserPlus } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -24,7 +24,12 @@ export default function RegisterPage() {
 		}
 	}, [token, router]);
 
-	if (token) return null;
+        if (token)
+                return (
+                        <div className="h-screen w-full flex items-center justify-center">
+                                <CircularProgress size="lg" color="primary" aria-label="Loading..." />
+                        </div>
+                );
 
 	const handleRegister = async (e: React.FormEvent) => {
 		e.preventDefault();

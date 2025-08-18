@@ -1,0 +1,160 @@
+diff --git a/app/login/page.tsx b/app/login/page.tsx
+index 670ac3c1e55d98fe2c91451cc87517f9a017a317..b6bcf64853ed0fe7062e6b05ce3e1718ab953a43 100644
+--- a/app/login/page.tsx
++++ b/app/login/page.tsx
+@@ -1,30 +1,30 @@
+ "use client";
+ 
+ import { api } from "@/lib/api";
+ import { useAuthStore } from "@/lib/store";
+-import { Button, Card, CardBody, Divider, Input } from "@nextui-org/react";
++import { Button, Card, CardBody, CircularProgress, Divider, Input } from "@nextui-org/react";
+ import { ArrowRight, HelpCircle, Lock, LogIn, User } from "lucide-react";
+ import { usePathname, useRouter } from "next/navigation";
+ import { useEffect, useState } from "react";
+ 
+ export default function LoginPage() {
+ 	const [username, setUsername] = useState("");
+ 	const [password, setPassword] = useState("");
+ 	const [error, setError] = useState("");
+ 	const [isLoading, setIsLoading] = useState(false);
+ 	const router = useRouter();
+ 	const pathname = usePathname();
+ 	const { token, setToken, setRole } = useAuthStore();
+ 
+ 	// Check auth status and redirect accordingly
+ 	useEffect(() => {
+ 		const checkAuth = async () => {
+ 			// If we have a token, verify it and redirect
+ 			if (token) {
+ 				try {
+ 					const response = await api.getCurrentUser();
+ 					if (response.data.role) {
+ 						setRole(response.data.role);
+ 						router.replace("/dashboard");
+ 					} else {
+ 						// Invalid token
+@@ -39,52 +39,57 @@ export default function LoginPage() {
+ 
+ 		if (token && pathname === "/login") {
+ 			checkAuth();
+ 		}
+ 	}, [token, router, pathname, setRole]);
+ 
+ 	const handleLogin = async (e: React.FormEvent) => {
+ 		e.preventDefault();
+ 		setError("");
+ 		setIsLoading(true);
+ 
+ 		try {
+ 			const { data } = await api.login(username, password);
+ 			setToken(data.access_token);
+ 			setRole(data.role);
+ 			router.push("/dashboard");
+ 		} catch (err: any) {
+ 			setError(
+ 				err.response?.data?.message || "نام کاربری یا رمز عبور اشتباه است."
+ 			);
+ 		} finally {
+ 			setIsLoading(false);
+ 		}
+ 	};
+ 
+-	// Don't show anything while checking auth
+-	if (token) return null;
++        // Show a loading state while verifying existing token
++        if (token)
++                return (
++                        <div className="h-screen w-full flex items-center justify-center">
++                                <CircularProgress size="lg" color="primary" aria-label="Loading..." />
++                        </div>
++                );
+ 
+ 	return (
+ 		<div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-background to-neutral-100 dark:from-background dark:to-neutral-900">
+ 			<div className="absolute inset-0 bg-grid-neutral-100/20 dark:bg-grid-neutral-900/20 bg-[size:20px_20px] pointer-events-none" />
+ 
+ 			<div className="w-full max-w-md z-10">
+ 				<Card className="backdrop-blur-[12px] border border-neutral-200/50 dark:border-neutral-800/50 shadow-2xl">
+ 					<CardBody className="p-6 space-y-6">
+ 						<div className="text-center space-y-2">
+ 							<h2 className="text-xl font-semibold text-foreground flex items-center justify-center gap-2">
+ 								<LogIn className="w-5 h-5" />
+ 								ورود به سامانه
+ 							</h2>
+ 							<p className="text-sm text-neutral-500 dark:text-neutral-400">
+ 								برای دسترسی به پنل کاربری خود وارد شوید
+ 							</p>
+ 						</div>
+ 
+ 						{error && (
+ 							<div className="bg-danger-50 dark:bg-danger-900/30 text-danger-600 dark:text-danger-400 p-3 rounded-lg text-sm animate-fade-in">
+ 								{error}
+ 							</div>
+ 						)}
+ 
+ 						<form onSubmit={handleLogin} className="space-y-4">
+diff --git a/app/register/page.tsx b/app/register/page.tsx
+index baafa08e0f82912ab7e68ac923cf21fdfde4daf9..f2b9e232f6df258ad0a25b98fe29b88badef4aa7 100644
+--- a/app/register/page.tsx
++++ b/app/register/page.tsx
+@@ -1,52 +1,57 @@
+ "use client";
+ 
+ import { api } from "@/lib/api";
+ import { useAuthStore } from "@/lib/store";
+-import { Button, Card, CardBody, Input } from "@nextui-org/react";
++import { Button, Card, CardBody, CircularProgress, Input } from "@nextui-org/react";
+ import { ArrowRight, Lock, User, UserPlus } from "lucide-react";
+ import Image from "next/image";
+ import { useRouter } from "next/navigation";
+ import { useEffect, useState } from "react";
+ 
+ export default function RegisterPage() {
+ 	const { token } = useAuthStore();
+ 	const router = useRouter();
+ 	const [username, setUsername] = useState("");
+ 	const [password, setPassword] = useState("");
+ 	const [firstName, setFirstName] = useState("");
+ 	const [lastName, setLastName] = useState("");
+ 	const [error, setError] = useState("");
+ 	const [isLoading, setIsLoading] = useState(false);
+ 
+ 	useEffect(() => {
+ 		if (token) {
+ 			router.replace("/dashboard");
+ 		}
+ 	}, [token, router]);
+ 
+-	if (token) return null;
++        if (token)
++                return (
++                        <div className="h-screen w-full flex items-center justify-center">
++                                <CircularProgress size="lg" color="primary" aria-label="Loading..." />
++                        </div>
++                );
+ 
+ 	const handleRegister = async (e: React.FormEvent) => {
+ 		e.preventDefault();
+ 		setError("");
+ 		setIsLoading(true);
+ 
+ 		try {
+ 			await api.registerUser(username, password, firstName, lastName);
+ 			router.push("/login");
+ 		} catch (err) {
+ 			setError("خطایی رخ داده است. لطفاً دوباره تلاش کنید.");
+ 		} finally {
+ 			setIsLoading(false);
+ 		}
+ 	};
+ 
+ 	return (
+ 		<div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-background to-neutral-100 dark:from-background dark:to-neutral-900">
+ 			{/* Background Pattern */}
+ 			<div className="absolute inset-0 bg-grid-neutral-100/20 dark:bg-grid-neutral-900/20 bg-[size:20px_20px] pointer-events-none" />
+ 
+ 			<div className="w-full max-w-md z-10">
+ 				{/* Logo Section */}
+ 				<div className="text-center mb-8">
+ 					<Image

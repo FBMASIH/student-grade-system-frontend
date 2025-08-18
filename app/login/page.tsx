@@ -2,7 +2,7 @@
 
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
-import { Button, Card, CardBody, Divider, Input } from "@nextui-org/react";
+import { Button, Card, CardBody, CircularProgress, Divider, Input } from "@nextui-org/react";
 import { ArrowRight, HelpCircle, Lock, LogIn, User } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -61,8 +61,13 @@ export default function LoginPage() {
 		}
 	};
 
-	// Don't show anything while checking auth
-	if (token) return null;
+        // Show a loading state while verifying existing token
+        if (token)
+                return (
+                        <div className="h-screen w-full flex items-center justify-center">
+                                <CircularProgress size="lg" color="primary" aria-label="Loading..." />
+                        </div>
+                );
 
 	return (
 		<div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-background to-neutral-100 dark:from-background dark:to-neutral-900">
