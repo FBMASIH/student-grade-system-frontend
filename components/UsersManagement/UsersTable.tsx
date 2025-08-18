@@ -105,22 +105,24 @@ export function UsersTable({
 	onDeleteMultipleUsers,
 	styles = defaultStyles,
 }: UsersTableProps) {
-	const [searchQuery, setSearchQuery] = useState("");
-	const [selectedRole, setSelectedRole] = useState<
-		"" | "admin" | "teacher" | "student"
-	>("");
-	const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
-	const [selectAll, setSelectAll] = useState(false);
-	const searchTimeout = useRef<NodeJS.Timeout>();
+        const [searchQuery, setSearchQuery] = useState("");
+        const [selectedRole, setSelectedRole] = useState<
+                "" | "admin" | "teacher" | "student"
+        >("");
+        const [groupQuery, setGroupQuery] = useState("");
+        const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
+        const [selectAll, setSelectAll] = useState(false);
+        const searchTimeout = useRef<NodeJS.Timeout>();
 
-	const {
-		users,
-		totalPages,
-		loading,
-		error: fetchError,
-		filters,
-		fetchUsers,
-	} = useUsers({
+        const {
+                users,
+                totalPages,
+                totalItems,
+                loading,
+                error: fetchError,
+                filters,
+                fetchUsers,
+        } = useUsers({
 		page: 1,
 		limit: 10,
 		search: "",
@@ -203,41 +205,49 @@ export function UsersTable({
 		}
 	};
 
-	useEffect(() => {
-		if (searchTimeout.current) {
-			clearTimeout(searchTimeout.current);
-		}
+        useEffect(() => {
+                if (searchTimeout.current) {
+                        clearTimeout(searchTimeout.current);
+                }
 
-		searchTimeout.current = setTimeout(() => {
-			const newFilters: Partial<UserFilters> = {
-				page: 1,
-			};
+                searchTimeout.current = setTimeout(() => {
+                        const newFilters: Partial<UserFilters> = {
+                                page: 1,
+                        };
 
-			if (searchQuery.trim()) {
-				newFilters.search = searchQuery;
-			}
+                        if (searchQuery.trim()) {
+                                newFilters.search = searchQuery;
+                        }
 
-			if (selectedRole) {
-				newFilters.role = selectedRole;
-			}
+                        if (selectedRole) {
+                                newFilters.role = selectedRole;
+                        }
 
-			fetchUsers(newFilters);
-		}, 500);
+                        if (groupQuery.trim()) {
+                                newFilters.groupId = groupQuery;
+                        }
 
-		return () => {
-			if (searchTimeout.current) {
-				clearTimeout(searchTimeout.current);
-			}
-		};
-	}, [searchQuery, selectedRole]); // eslint-disable-line react-hooks/exhaustive-deps
+                        fetchUsers(newFilters);
+                }, 500);
+
+                return () => {
+                        if (searchTimeout.current) {
+                                clearTimeout(searchTimeout.current);
+                        }
+                };
+        }, [searchQuery, selectedRole, groupQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const handleSearchChange = (value: string) => {
 		setSearchQuery(value);
 	};
 
-	const handleRoleChange = (value: "" | "admin" | "teacher" | "student") => {
-		setSelectedRole(value);
-	};
+        const handleRoleChange = (value: "" | "admin" | "teacher" | "student") => {
+                setSelectedRole(value);
+        };
+
+        const handleGroupChange = (value: string) => {
+                setGroupQuery(value);
+        };
 
 	const handlePageChange = useCallback(
 		(page: number) => {
@@ -285,51 +295,46 @@ export function UsersTable({
 			return [];
 		}
 
-		return users.map((user) => ({
-			key: user.id,
-			id: (
-				<div className={styles.idBadge}>
-					#{String(user.id).padStart(4, "0")}
-				</div>
-			),
-			username: user.username,
-			role: (() => {
-				const role = roleConfig[user.role as "admin" | "teacher" | "student"];
-				const RoleIcon = role.icon;
-				const badgeStyle =
-					styles.badgeStyles[user.role as "admin" | "teacher" | "student"];
-				return (
-					<div className={badgeStyle.base}>
-						<RoleIcon className={badgeStyle.icon} />
-						<span>{role.label}</span>
-					</div>
-				);
-			})(),
-			actions: (
-				<div className="flex gap-2">
-					<Button
-						className={styles.buttonStyles.secondary}
-						onClick={() => onEditUser(user)}
-						startContent={<Edit className="w-4 h-4" />}>
-						ویرایش
-					</Button>
-					<Button
-						className={styles.buttonStyles.danger}
-						onClick={() => handleDeleteUser(user.id)}
-						startContent={<Trash2 className="w-4 h-4" />}>
-						حذف
-					</Button>
-				</div>
-			),
-		}));
-	}, [
-		users,
-		onEditUser,
-		handleDeleteUser,
-		handleUserSelection,
-		selectedUsers,
-		styles,
-	]);
+                return users.map((user) => ({
+                        key: user.id,
+                        fullName: `${user.firstName} ${user.lastName}`,
+                        username: user.username,
+                        group: user.groupName || "-",
+                        role: (() => {
+                                const role = roleConfig[user.role as "admin" | "teacher" | "student"];
+                                const RoleIcon = role.icon;
+                                const badgeStyle =
+                                        styles.badgeStyles[user.role as "admin" | "teacher" | "student"];
+                                return (
+                                        <div className={badgeStyle.base}>
+                                                <RoleIcon className={badgeStyle.icon} />
+                                                <span>{role.label}</span>
+                                        </div>
+                                );
+                        })(),
+                        actions: (
+                                <div className="flex gap-2">
+                                        <Button
+                                                className={styles.buttonStyles.secondary}
+                                                onClick={() => onEditUser(user)}
+                                                startContent={<Edit className="w-4 h-4" />}> 
+                                                ویرایش
+                                        </Button>
+                                        <Button
+                                                className={styles.buttonStyles.danger}
+                                                onClick={() => handleDeleteUser(user.id)}
+                                                startContent={<Trash2 className="w-4 h-4" />}> 
+                                                حذف
+                                        </Button>
+                                </div>
+                        ),
+                }));
+        }, [
+                users,
+                onEditUser,
+                handleDeleteUser,
+                styles,
+        ]);
 
 	if (loading && !users.length) {
 		return (
@@ -353,43 +358,55 @@ export function UsersTable({
 	return (
 		<div className="space-y-6">
 			<div className="flex justify-between items-center gap-4 px-2">
-				<div className="flex items-center gap-4 flex-1">
-					<Input
-						placeholder="جستجوی کاربر..."
-						value={searchQuery}
-						onChange={(e) => handleSearchChange(e.target.value)}
-						startContent={<Search className="w-4 h-4 text-primary-500" />}
-						className="w-72"
-						classNames={{
-							inputWrapper: styles.search,
-						}}
-					/>
-					<Select
-						placeholder="فیلتر بر اساس نقش"
-						selectedKeys={selectedRole ? [selectedRole] : []}
-						onChange={(e) =>
-							handleRoleChange(
-								e.target.value as "" | "admin" | "teacher" | "student"
-							)
-						}
-						className="w-48"
-						size="sm">
-						<SelectItem key="" value="">
-							همه
-						</SelectItem>
-						{
-							Object.entries(roleConfig).map(([key, config]) => (
-								<SelectItem
-									key={key}
-									value={key}
-									startContent={<config.icon className="w-4 h-4" />}>
-									{config.label}
-								</SelectItem>
-							)) as any
-						}
-					</Select>
-				</div>
-				<div className="flex gap-2">
+                               <div className="flex items-center gap-4 flex-1">
+                                       <Input
+                                               placeholder="جستجوی کاربر..."
+                                               value={searchQuery}
+                                               onChange={(e) => handleSearchChange(e.target.value)}
+                                               startContent={<Search className="w-4 h-4 text-primary-500" />}
+                                               className="w-72"
+                                               classNames={{
+                                                       inputWrapper: styles.search,
+                                               }}
+                                       />
+                                       <Input
+                                                placeholder="شماره گروه"
+                                                value={groupQuery}
+                                                onChange={(e) => handleGroupChange(e.target.value)}
+                                                className="w-40"
+                                                classNames={{
+                                                        inputWrapper: styles.search,
+                                                }}
+                                        />
+                                        <Select
+                                                placeholder="فیلتر بر اساس نقش"
+                                                selectedKeys={selectedRole ? [selectedRole] : []}
+                                                onChange={(e) =>
+                                                        handleRoleChange(
+                                                                e.target.value as "" | "admin" | "teacher" | "student"
+                                                        )
+                                                }
+                                                className="w-48"
+                                                size="sm">
+                                                <SelectItem key="" value="">
+                                                        همه
+                                                </SelectItem>
+                                                {
+                                                        Object.entries(roleConfig).map(([key, config]) => (
+                                                                <SelectItem
+                                                                        key={key}
+                                                                        value={key}
+                                                                        startContent={<config.icon className="w-4 h-4" />}> 
+                                                                        {config.label}
+                                                                </SelectItem>
+                                                        )) as any
+                                                }
+                                        </Select>
+                                       <span className="text-sm text-neutral-600">
+                                                تعداد کل: {totalItems}
+                                        </span>
+                               </div>
+                               <div className="flex gap-2">
 				
 					<Button
 						className={`${styles.buttonStyles.danger} h-12 px-6`}
@@ -408,15 +425,16 @@ export function UsersTable({
 					th: styles.th,
 					td: styles.td,
 				}}>
-				<TableHeader>
-					<TableColumn>
-						<Checkbox isSelected={selectAll} onValueChange={handleSelectAll} />
-					</TableColumn>
-					<TableColumn>شناسه</TableColumn>
-					<TableColumn>نام کاربری</TableColumn>
-					<TableColumn>نقش</TableColumn>
-					<TableColumn>عملیات</TableColumn>
-				</TableHeader>
+                                <TableHeader>
+                                        <TableColumn>
+                                                <Checkbox isSelected={selectAll} onValueChange={handleSelectAll} />
+                                        </TableColumn>
+                                        <TableColumn>نام و نام خانوادگی</TableColumn>
+                                        <TableColumn>نام کاربری</TableColumn>
+                                        <TableColumn>نام گروه</TableColumn>
+                                        <TableColumn>نقش</TableColumn>
+                                        <TableColumn>عملیات</TableColumn>
+                                </TableHeader>
 				<TableBody
 					items={tableItems() || []}
 					emptyContent="هیچ کاربری یافت نشد"
@@ -427,18 +445,19 @@ export function UsersTable({
 					}
 					loadingState={loading ? "loading" : "idle"}>
 					{(item) => (
-						<TableRow key={item.key}>
-							<TableCell>
-								<Checkbox
-									isSelected={selectedUsers.includes(item.key)}
-									onValueChange={() => handleUserSelection(item.key)}
-								/>
-							</TableCell>
-							<TableCell>{item.id}</TableCell>
-							<TableCell>{item.username}</TableCell>
-							<TableCell>{item.role}</TableCell>
-							<TableCell>{item.actions}</TableCell>
-						</TableRow>
+                                                <TableRow key={item.key}>
+                                                        <TableCell>
+                                                                <Checkbox
+                                                                        isSelected={selectedUsers.includes(item.key)}
+                                                                        onValueChange={() => handleUserSelection(item.key)}
+                                                                />
+                                                        </TableCell>
+                                                        <TableCell>{item.fullName}</TableCell>
+                                                        <TableCell>{item.username}</TableCell>
+                                                        <TableCell>{item.group}</TableCell>
+                                                        <TableCell>{item.role}</TableCell>
+                                                        <TableCell>{item.actions}</TableCell>
+                                                </TableRow>
 					)}
 				</TableBody>
 			</Table>

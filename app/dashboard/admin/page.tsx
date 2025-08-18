@@ -11,14 +11,11 @@ import {
 	TicketIcon,
 	Users,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { QuickStats } from "../../../components/QuickStats";
 import { UsersManagement } from "../../../components/UsersManagement";
-import AcademicGroupsManagement from "./academic-groups/page";
 import CourseGroupsManagement from "./course-groups/page";
-import CoursesManagement from "./courses/page";
 import EnrollmentsManagement from "./enrollments/page";
 import AdminScoreManagement from "./scores/page";
 
@@ -83,113 +80,81 @@ export default function AdminDashboard() {
 				<QuickStats />
 
 				{/* Main Content */}
-				<Card className="border border-neutral-200/50 dark:border-neutral-800/50">
-					<CardBody className="p-0">
-						<Tabs
-							selectedKey={selectedTab}
-							onSelectionChange={(key) => setSelectedTab(key.toString())}
-							aria-label="مدیریت سیستم"
-							className="p-0"
-							classNames={{
-								tabList: "p-0 bg-transparent",
-								cursor: "bg-primary",
-								tab: "h-12 px-8",
-								panel: "p-4",
-							}}>
-							<Tab
-								key="users"
-								title={
-									<div className="flex items-center gap-2">
-										<Users className="w-4 h-4" />
-										<span>کاربران</span>
-									</div>
-								}>
-								<UsersManagement
-									key={Date.now()} // Force re-render on tab change
-									initialData={initialData.users}
-									onUserChange={loadData} // Add this prop
-								/>
-							</Tab>
+                                <Card className="border border-neutral-200/50 dark:border-neutral-800/50">
+                                        <CardBody className="p-0">
+                                                <Tabs
+                                                        selectedKey={selectedTab}
+                                                        onSelectionChange={(key) => setSelectedTab(key.toString())}
+                                                        aria-label="مدیریت سیستم"
+                                                        className="p-0"
+                                                        classNames={{
+                                                                tabList: "p-0 bg-transparent",
+                                                                cursor: "bg-primary",
+                                                                tab: "h-12 px-8",
+                                                                panel: "p-4",
+                                                        }}>
+                                                        <Tab
+                                                                key="users"
+                                                                title={
+                                                                        <div className="flex items-center gap-2">
+                                                                                <Users className="w-4 h-4" />
+                                                                                <span>کاربران</span>
+                                                                        </div>
+                                                                }>
+                                                                <UsersManagement
+                                                                        key={Date.now()} // Force re-render on tab change
+                                                                        initialData={initialData.users}
+                                                                        onUserChange={loadData} // Add this prop
+                                                                />
+                                                        </Tab>
 
-							<Tab
-								key="courses"
-								title={
-									<div className="flex items-center gap-2">
-										<Users className="w-4 h-4" />
+                                                        <Tab
+                                                                key="enrollments"
+                                                                title={
+                                                                        <div className="flex items-center gap-2">
+                                                                                <GraduationCap className="w-4 h-4" />
+                                                                                <span>ثبت‌نام‌ها</span>
+                                                                        </div>
+                                                                }>
+                                                                <EnrollmentsManagement />
+                                                        </Tab>
 
-										<span>گروه</span>
-									</div>
-								}>
-								<CoursesManagement />
-							</Tab>
+                                                        <Tab
+                                                                key="course-groups"
+                                                                title={
+                                                                        <div className="flex items-center gap-2">
+                                                                                <BookOpen className="w-4 h-4" />
 
-							<Tab
-								key="enrollments"
-								title={
-									<div className="flex items-center gap-2">
-										<GraduationCap className="w-4 h-4" />
-										<span>ثبت‌نام‌ها</span>
-									</div>
-								}>
-								<EnrollmentsManagement />
-							</Tab>
+                                                                                <span> درس</span>
+                                                                        </div>
+                                                                }>
+                                                                <CourseGroupsManagement />
+                                                        </Tab>
 
-							<Tab
-								key="course-groups"
-								title={
-									<div className="flex items-center gap-2">
-										<BookOpen className="w-4 h-4" />
+                                                        <Tab
+                                                                key="tickets"
+                                                                title={
+                                                                        <div className="flex items-center gap-2">
+                                                                                <TicketIcon className="w-4 h-4" />
+                                                                                <span>تیکت‌ها</span>
+                                                                        </div>
+                                                                }>
+                                                                <TicketList />
+                                                        </Tab>
 
-										<span> درس</span>
-									</div>
-								}>
-								<CourseGroupsManagement />
-							</Tab>
-
-							<Tab
-								key="academic-groups"
-								title={
-									<div className="flex items-center gap-2">
-										<BookOpen className="w-4 h-4" />
-										<span>گروه‌های آموزشی</span>
-									</div>
-								}>
-								<AcademicGroupsManagement />
-							</Tab>
-
-							<Tab
-								key="tickets"
-								title={
-									<div className="flex items-center gap-2">
-										<TicketIcon className="w-4 h-4" />
-										<span>تیکت‌ها</span>
-									</div>
-								}>
-								<TicketList />
-							</Tab>
-
-							<Tab
-								key="scores"
-								title={
-									<div className="flex items-center gap-2">
-										<PenSquare className="w-4 h-4" />
-										<span>ثبت نمرات</span>
-									</div>
-								}>
-								<AdminScoreManagement />
-							</Tab>
-						</Tabs>
-					</CardBody>
-				</Card>
-				<nav>
-					<ul>
-						<li>
-							<Link href="/dashboard/admin/academic-groups">
-								Academic Groups
-							</Link>
-						</li>
-					</ul>
-				</nav>
+                                                        <Tab
+                                                                key="scores"
+                                                                title={
+                                                                        <div className="flex items-center gap-2">
+                                                                                <PenSquare className="w-4 h-4" />
+                                                                                <span>ثبت نمرات</span>
+                                                                        </div>
+                                                                }>
+                                                                <AdminScoreManagement />
+                                                        </Tab>
+                                                </Tabs>
+                                        </CardBody>
+                                </Card>
 			</div>
 		</div>
 	);

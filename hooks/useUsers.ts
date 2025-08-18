@@ -11,14 +11,16 @@ export const useUsers = ({
 	...initialFilters
 }: UseUsersOptions) => {
 	const [users, setUsers] = useState<User[]>(initialData);
-	const [totalPages, setTotalPages] = useState(0);
+        const [totalPages, setTotalPages] = useState(0);
+        const [totalItems, setTotalItems] = useState(0);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [filters, setFilters] = useState<UserFilters>({
 		page: initialFilters.page || 1,
 		limit: initialFilters.limit || 10,
-		search: initialFilters.search || "",
-		role: initialFilters.role || "",
+                search: initialFilters.search || "",
+                role: initialFilters.role || "",
+                groupId: initialFilters.groupId || "",
 	});
 	const abortController = useRef<AbortController | null>(null);
 
@@ -32,12 +34,13 @@ export const useUsers = ({
 
 	// Initialize state with initialData
 	useEffect(() => {
-		if (Array.isArray(initialData) && initialData.length > 0) {
-			setUsers(initialData);
-			setTotalPages(
-				Math.ceil(initialData.length / (initialFilters.limit || 10))
-			);
-		}
+                if (Array.isArray(initialData) && initialData.length > 0) {
+                        setUsers(initialData);
+                        setTotalPages(
+                                Math.ceil(initialData.length / (initialFilters.limit || 10))
+                        );
+                        setTotalItems(initialData.length);
+                }
 	}, [initialData, initialFilters.limit]);
 
 	// Update the effect to notify on users change
@@ -55,26 +58,29 @@ export const useUsers = ({
 			setLoading(true);
 
 			try {
-				const currentFilters = {
-					...filters,
-					...newFilters,
-					// Only include search and role if they have values
-					search: newFilters?.search?.trim() || undefined,
-					role: newFilters?.role || undefined,
-				};
-				setFilters(currentFilters);
+                                const currentFilters = {
+                                        ...filters,
+                                        ...newFilters,
+                                        // Only include search, role and groupId if they have values
+                                        search: newFilters?.search?.trim() || undefined,
+                                        role: newFilters?.role || undefined,
+                                        groupId: newFilters?.groupId?.trim() || undefined,
+                                } as UserFilters;
+                                setFilters(currentFilters);
 
-				const response = await api.getUsers(
-					currentFilters.page,
-					currentFilters.limit,
-					currentFilters.search,
-					currentFilters.role
-				);
+                                const response = await api.getUsers(
+                                        currentFilters.page,
+                                        currentFilters.limit,
+                                        currentFilters.search,
+                                        currentFilters.role,
+                                        currentFilters.groupId
+                                );
 
-				if (response.data && Array.isArray(response.data.items)) {
-					setUsers(response.data.items);
-					setTotalPages(response.data.meta.totalPages || 1);
-				}
+                                if (response.data && Array.isArray(response.data.items)) {
+                                        setUsers(response.data.items);
+                                        setTotalPages(response.data.meta.totalPages || 1);
+                                        setTotalItems(response.data.meta.totalItems || 0);
+                                }
 			} catch (err) {
 				if ((err as Error).name !== "AbortError") {
 					setError(err instanceof Error ? err.message : "Failed to load users");
@@ -135,14 +141,15 @@ export const useUsers = ({
 	);
 
 	return {
-		users,
-		totalPages,
-		loading,
-		error,
-		filters,
-		fetchUsers,
-		deleteUser,
-		updateUser,
-		createUser,
-	};
+                users,
+                totalPages,
+                totalItems,
+                loading,
+                error,
+                filters,
+                fetchUsers,
+                deleteUser,
+                updateUser,
+                createUser,
+        };
 };

@@ -10,18 +10,20 @@ export interface PaginatedResponse<T = any> {
 }
 
 export interface User {
-	id: number;
-	username: string;
-	role: string;
-	firstName: string; // Add firstName
-	lastName: string; // Add lastName
+        id: number;
+        username: string;
+        role: string;
+        firstName: string; // Add firstName
+        lastName: string; // Add lastName
+        groupName?: string; // Optional group name
 }
 
 export interface UserFilters {
-	page: number;
-	limit: number;
-	search?: string;
-	role?: "admin" | "teacher" | "student" | ""; // Added role filter
+        page: number;
+        limit: number;
+        search?: string;
+        role?: "admin" | "teacher" | "student" | ""; // Added role filter
+        groupId?: string; // Filter by group
 }
 
 export interface Group {
