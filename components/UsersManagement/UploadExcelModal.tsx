@@ -2,23 +2,25 @@
 
 import { api } from "@/lib/api";
 import {
-	Button,
-	Card,
-	CardBody,
-	Chip,
-	CircularProgress,
-	Input,
-	Modal,
-	ModalBody,
-	ModalContent,
-	ModalFooter,
-	ModalHeader,
-	Table,
-	TableBody,
-	TableCell,
-	TableColumn,
-	TableHeader,
-	TableRow,
+        Button,
+        Card,
+        CardBody,
+        Chip,
+        CircularProgress,
+        Input,
+        Modal,
+        ModalBody,
+        ModalContent,
+        ModalFooter,
+        ModalHeader,
+        Table,
+        TableBody,
+        TableCell,
+        TableColumn,
+        TableHeader,
+        TableRow,
+        Select,
+        SelectItem,
 } from "@nextui-org/react";
 import { AlertCircle } from "lucide-react";
 import {
@@ -59,24 +61,33 @@ export function UploadExcelModal({
 	isOpen: boolean;
 	onClose: () => void;
 }) {
-	const [isUploading, setIsUploading] = useState(false);
-	const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
-	const [duplicateUsers, setDuplicateUsers] = useState<DuplicateUser[]>([]);
-	const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+        const [isUploading, setIsUploading] = useState(false);
+        const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
+        const [duplicateUsers, setDuplicateUsers] = useState<DuplicateUser[]>([]);
+        const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+        const [groupId, setGroupId] = useState("");
+        const [role, setRole] = useState("student");
 
 	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (!file) return;
+                const file = e.target.files?.[0];
+                if (!file) return;
 
-		setIsUploading(true);
-		setDuplicateUsers([]);
-		setUploadErrors([]);
+                if (!groupId) {
+                        toast.error("لطفا شماره گروه را وارد کنید");
+                        return;
+                }
 
-		const formData = new FormData();
-		formData.append("file", file);
+                setIsUploading(true);
+                setDuplicateUsers([]);
+                setUploadErrors([]);
 
-		try {
-			const { data } = await api.uploadUsersExcel(formData);
+                const formData = new FormData();
+                formData.append("file", file);
+                formData.append("groupId", groupId);
+                formData.append("role", role);
+
+                try {
+                        const { data } = await api.uploadUsersExcel(formData, role, Number(groupId));
 			console.log("Upload response:", data);
 
 			const validUsers = [...(data.users || []), ...(data.reactivated || [])];
@@ -127,8 +138,15 @@ export function UploadExcelModal({
 		}
 	};
 
-	return (
-		<Modal isOpen={isOpen} onClose={onClose} size="4xl">
+        return (
+                <Modal
+                        isOpen={isOpen}
+                        onClose={() => {
+                                setGroupId("");
+                                setRole("student");
+                                onClose();
+                        }}
+                        size="4xl">
 			<ModalContent>
 				{(onClose) => (
 					<>
@@ -140,20 +158,42 @@ export function UploadExcelModal({
 						</ModalHeader>
 						<ModalBody>
 							<div className="space-y-4">
-								<Card className="border border-neutral-200 dark:border-neutral-800">
-									<CardBody className="p-4">
-										<Input
-											type="file"
-											accept=".xlsx,.xls,.csv"
-											onChange={handleFileChange}
-											disabled={isUploading}
-											description="فرمت‌های مجاز: Excel (.xlsx, .xls) و CSV"
-											classNames={{
-												input: "cursor-pointer",
-											}}
-										/>
-									</CardBody>
-								</Card>
+                                                                <Input
+                                                                        label="شماره گروه"
+                                                                        value={groupId}
+                                                                        onChange={(e) => setGroupId(e.target.value)}
+                                                                        variant="bordered"
+                                                                        className="text-right"
+                                                                />
+                                                                <Select
+                                                                        label="نقش کاربران"
+                                                                        selectedKeys={[role]}
+                                                                        onChange={(e) => setRole(e.target.value)}
+                                                                        className="text-right">
+                                                                        <SelectItem key="student" value="student">
+                                                                                دانشجو
+                                                                        </SelectItem>
+                                                                        <SelectItem key="teacher" value="teacher">
+                                                                                استاد
+                                                                        </SelectItem>
+                                                                        <SelectItem key="admin" value="admin">
+                                                                                مدیر سیستم
+                                                                        </SelectItem>
+                                                                </Select>
+                                                                <Card className="border border-neutral-200 dark:border-neutral-800">
+                                                                        <CardBody className="p-4">
+                                                                                <Input
+                                                                                        type="file"
+                                                                                        accept=".xlsx,.xls,.csv"
+                                                                                        onChange={handleFileChange}
+                                                                                        disabled={isUploading}
+                                                                                        description="فرمت‌های مجاز: Excel (.xlsx, .xls) و CSV"
+                                                                                        classNames={{
+                                                                                                input: "cursor-pointer",
+                                                                                        }}
+                                                                                />
+                                                                        </CardBody>
+                                                                </Card>
 
 								{isUploading && (
 									<div className="flex flex-col items-center gap-2 py-8">

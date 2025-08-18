@@ -109,7 +109,6 @@ export function UsersTable({
         const [selectedRole, setSelectedRole] = useState<
                 "" | "admin" | "teacher" | "student"
         >("");
-        const [groupQuery, setGroupQuery] = useState("");
         const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
         const [selectAll, setSelectAll] = useState(false);
         const searchTimeout = useRef<NodeJS.Timeout>();
@@ -223,9 +222,6 @@ export function UsersTable({
                                 newFilters.role = selectedRole;
                         }
 
-                        if (groupQuery.trim()) {
-                                newFilters.groupId = groupQuery;
-                        }
 
                         fetchUsers(newFilters);
                 }, 500);
@@ -235,7 +231,7 @@ export function UsersTable({
                                 clearTimeout(searchTimeout.current);
                         }
                 };
-        }, [searchQuery, selectedRole, groupQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+        }, [searchQuery, selectedRole]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const handleSearchChange = (value: string) => {
 		setSearchQuery(value);
@@ -245,9 +241,6 @@ export function UsersTable({
                 setSelectedRole(value);
         };
 
-        const handleGroupChange = (value: string) => {
-                setGroupQuery(value);
-        };
 
 	const handlePageChange = useCallback(
 		(page: number) => {
@@ -299,7 +292,6 @@ export function UsersTable({
                         key: user.id,
                         fullName: `${user.firstName} ${user.lastName}`,
                         username: user.username,
-                        group: user.groupName || "-",
                         role: (() => {
                                 const role = roleConfig[user.role as "admin" | "teacher" | "student"];
                                 const RoleIcon = role.icon;
@@ -369,15 +361,6 @@ export function UsersTable({
                                                        inputWrapper: styles.search,
                                                }}
                                        />
-                                       <Input
-                                                placeholder="شماره گروه"
-                                                value={groupQuery}
-                                                onChange={(e) => handleGroupChange(e.target.value)}
-                                                className="w-40"
-                                                classNames={{
-                                                        inputWrapper: styles.search,
-                                                }}
-                                        />
                                         <Select
                                                 placeholder="فیلتر بر اساس نقش"
                                                 selectedKeys={selectedRole ? [selectedRole] : []}
@@ -431,7 +414,6 @@ export function UsersTable({
                                         </TableColumn>
                                         <TableColumn>نام و نام خانوادگی</TableColumn>
                                         <TableColumn>نام کاربری</TableColumn>
-                                        <TableColumn>نام گروه</TableColumn>
                                         <TableColumn>نقش</TableColumn>
                                         <TableColumn>عملیات</TableColumn>
                                 </TableHeader>
@@ -454,7 +436,6 @@ export function UsersTable({
                                                         </TableCell>
                                                         <TableCell>{item.fullName}</TableCell>
                                                         <TableCell>{item.username}</TableCell>
-                                                        <TableCell>{item.group}</TableCell>
                                                         <TableCell>{item.role}</TableCell>
                                                         <TableCell>{item.actions}</TableCell>
                                                 </TableRow>

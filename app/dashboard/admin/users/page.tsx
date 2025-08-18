@@ -120,40 +120,36 @@ export default function UserManagement() {
 								/>
 							</div>
 
-							<Table aria-label="لیست کاربران">
-								<TableHeader>
-									<TableColumn>نام کاربری</TableColumn>
-									<TableColumn>نام</TableColumn>
-									<TableColumn>نام خانوادگی</TableColumn>
-									<TableColumn>ایمیل</TableColumn>
-									<TableColumn>نقش</TableColumn>
-									<TableColumn>عملیات</TableColumn>
-								</TableHeader>
-								<TableBody emptyContent="کاربری یافت نشد">
-									{users.map((user) => (
-										<TableRow key={user.id}>
-											<TableCell>{user.username}</TableCell>
-											<TableCell>{user.firstName}</TableCell>
-											<TableCell>{user.lastName}</TableCell>
-											<TableCell>{user.email}</TableCell>
-											<TableCell>{user.role}</TableCell>
-											<TableCell>
-												<Button
-													color="primary"
-													variant="flat"
-													size="sm"
-													onClick={() => handleOpenModal(user)}>
-													ویرایش
-												</Button>
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</>
-					)}
-				</CardBody>
-			</Card>
+                                                        <Table aria-label="لیست کاربران">
+                                                                <TableHeader>
+                                                                        <TableColumn>نام و نام خانوادگی</TableColumn>
+                                                                        <TableColumn>نام کاربری</TableColumn>
+                                                                        <TableColumn>نقش</TableColumn>
+                                                                        <TableColumn>عملیات</TableColumn>
+                                                                </TableHeader>
+                                                                <TableBody emptyContent="کاربری یافت نشد">
+                                                                        {users.map((user) => (
+                                                                                <TableRow key={user.id}>
+                                                                                        <TableCell>{`${user.firstName} ${user.lastName}`}</TableCell>
+                                                                                        <TableCell>{user.username}</TableCell>
+                                                                                        <TableCell>{user.role}</TableCell>
+                                                                                        <TableCell>
+                                                                                                <Button
+                                                                                                        color="primary"
+                                                                                                        variant="flat"
+                                                                                                        size="sm"
+                                                                                                        onClick={() => handleOpenModal(user)}>
+                                                                                                        ویرایش
+                                                                                                </Button>
+                                                                                        </TableCell>
+                                                                                </TableRow>
+                                                                        ))}
+                                                                </TableBody>
+                                                        </Table>
+                                                </>
+                                        )}
+                                </CardBody>
+                        </Card>
 
 			<div className="flex justify-center">
 				<Pagination
