@@ -148,12 +148,7 @@ export default function AcademicGroupsManagement() {
 				api.getAllCourses(1, 100),
 				api.getUsers(1, 100, undefined, "teacher"),
 			]);
-			setCourses(
-				coursesRes.data.items.map((course: any) => ({
-					...course,
-					units: course.units || 0, // Ensure units property exists
-				}))
-			);
+                        setCourses(coursesRes.data.items);
 			setProfessors(professorsRes.data.items);
 		} catch (err: any) {
 			toast.error("Error fetching courses and professors");

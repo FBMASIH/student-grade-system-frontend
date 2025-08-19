@@ -33,11 +33,9 @@ export interface Group {
 }
 
 export interface Course {
-	id: number;
-	name: string; // e.g., "Mathematics"
-	code: string; // e.g., "MATH101"
-	units: number;
-	department?: string;
+        id: number;
+        name: string; // e.g., "Mathematics"
+        code: string; // e.g., "MATH101"
 }
 
 export interface CourseAssignment {
@@ -63,13 +61,12 @@ export interface Enrollment {
 	};
 	group: {
 		id: number;
-		groupNumber: number;
-		course: {
-			id: number;
-			name: string;
-			code: string;
-			units: number;
-		};
+                groupNumber: number;
+                course: {
+                        id: number;
+                        name: string;
+                        code: string;
+                };
 		professor: {
 			id: number;
 			username: string;

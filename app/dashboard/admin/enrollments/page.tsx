@@ -25,20 +25,18 @@ import { useEffect, useState } from "react";
 interface Enrollment {
 	id: number;
 	student: { id: number; username: string } | null;
-	group: {
-		id: number;
-		groupNumber: number;
-		capacity: number;
-		currentEnrollment: number;
-		course: {
-			id: number;
-			name: string;
-			code: string;
-			units: number;
-			department: string;
-		} | null;
-		professor: { id: number; username: string } | null;
-	} | null;
+        group: {
+                id: number;
+                groupNumber: number;
+                capacity: number;
+                currentEnrollment: number;
+                course: {
+                        id: number;
+                        name: string;
+                        code: string;
+                } | null;
+                professor: { id: number; username: string } | null;
+        } | null;
 	score?: number;
 	createdAt: string;
 	isActive: boolean;
