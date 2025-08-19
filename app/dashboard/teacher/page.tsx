@@ -2,293 +2,184 @@
 
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
-import { StudentEnrollment } from "@/lib/types/enrollment";
-import {
-	Badge,
-	Button,
-	Card,
-	CardBody,
-	Chip,
-	Input,
-	Table,
-	TableBody,
-	TableCell,
-	TableColumn,
-	TableHeader,
-	TableRow,
-} from "@nextui-org/react";
-import {
-	AlertCircle,
-	Check,
-	FileCheck,
-	PenSquare,
-	ScrollText,
-	Users,
-} from "lucide-react";
+import { Button, Card, CardBody, Chip } from "@nextui-org/react";
+import { AlertCircle, BookOpen, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { toast } from "sonner"; // Add this import
+import { toast } from "sonner";
+import { ScoreSubmissionModal } from "./components/ScoreSubmissionModal";
+
+interface Group {
+  id: number;
+  groupNumber: number;
+}
+
+interface Course {
+  id: number;
+  name: string;
+  groups: Group[];
+}
+
+interface Student {
+  id: number;
+  username: string;
+  firstName: string;
+  lastName: string;
+  score?: number;
+}
 
 export default function TeacherDashboard() {
-	const { token } = useAuthStore();
-	const [courses, setCourses] = useState([]);
-	const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
-	const [selectedGroup, setSelectedGroup] = useState("");
-	const [error, setError] = useState("");
-	const router = useRouter();
+  const { token, user } = useAuthStore();
+  const router = useRouter();
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [error, setError] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState<{
+    groupId: number;
+    courseName: string;
+    groupNumber: number;
+    students: Student[];
+  } | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-	useEffect(() => {
-		if (!token) {
-			router.push("/login");
-			return;
-		}
-		loadTeacherData();
-	}, [token, router]);
+  useEffect(() => {
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    loadCourses();
+  }, [token, user]);
 
-	const loadTeacherData = async () => {
-		try {
-			const coursesRes = await api.getProfessorCourses(1); // Replace with actual professor ID
-			setCourses(coursesRes.data);
+  const loadCourses = async () => {
+    try {
+      if (!user) return;
+      const res = await api.getProfessorCourses(user.id);
+      const data = res.data.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        groups: c.groups || [],
+      }));
+      setCourses(data);
+    } catch (err: any) {
+      setError(err.message);
+      toast.error("خطا در دریافت دروس");
+    }
+  };
 
-			if (selectedGroup) {
-				const enrollmentsRes = await api.getStudentEnrollments(selectedGroup);
-				const mappedEnrollments: StudentEnrollment[] =
-					enrollmentsRes.data.enrollments.map((e: any) => ({
-						id: e.id,
-						student: e.student || {
-							id: 0,
-							username: "نامشخص",
-							firstName: "",
-							lastName: "",
-						},
-						group: {
-							id: e.group?.id || 0,
-							groupNumber: e.group?.groupNumber || 0,
-							course: {
-								id: e.group?.course?.id || 0,
-								name: e.group?.course?.name || "نامشخص",
-							},
-						},
-						score: e.score,
-					}));
-				setEnrollments(mappedEnrollments);
-			}
-		} catch (err: any) {
-			setError(err.message);
-			toast.error("خطا در دریافت اطلاعات");
-		}
-	};
+  const openScoreModal = async (course: Course, group: Group) => {
+    try {
+      const res = await api.getCourseStudents(course.id);
+      const students = res.data
+        .filter((s: any) => s.groupNumber === group.groupNumber)
+        .map((s: any) => ({
+          id: s.id,
+          username: s.username,
+          firstName: s.firstName,
+          lastName: s.lastName,
+          score: s.score ?? undefined,
+        }));
+      setSelectedGroup({
+        groupId: group.id,
+        courseName: course.name,
+        groupNumber: group.groupNumber,
+        students,
+      });
+      setIsModalOpen(true);
+    } catch (err: any) {
+      setError(err.message);
+      toast.error("خطا در دریافت لیست دانشجویان");
+    }
+  };
 
-	const handleSubmitGrade = async (enrollmentId: number, score: number) => {
-		try {
-			// Use unified endpoint
-			await api.updateStudentScore(enrollmentId, score);
-			await loadTeacherData();
-			toast.success("نمره با موفقیت ثبت شد");
-		} catch (err: any) {
-			setError(err.message);
-			toast.error("خطا در ثبت نمره");
-		}
-	};
+  const handleSubmitScores = async (scores: Record<number, number>) => {
+    if (!selectedGroup) return;
+    try {
+      const formatted = Object.entries(scores).map(([id, score]) => ({
+        studentId: Number(id),
+        score,
+      }));
+      await api.submitGroupScores(selectedGroup.groupId, formatted);
+      toast.success("نمرات ثبت شد");
+      setIsModalOpen(false);
+    } catch (err: any) {
+      setError(err.message);
+      toast.error("خطا در ثبت نمرات");
+    }
+  };
 
-	return (
-		<div
-			className="min-h-screen bg-neutral-50/50 dark:bg-neutral-900/50"
-			dir="rtl">
-			<div className="max-w-[1400px] mx-auto p-4 lg:p-6 xl:p-8 space-y-6">
-				{/* Header Section */}
-				<div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
-					<div className="space-y-1">
-						<h1 className="text-2xl lg:text-3xl xl:text-4xl font-bold">
-							پنل استاد
-						</h1>
-						<p className="text-neutral-600 dark:text-neutral-400">
-							مدیریت نمرات و اعتراضات دانشجویان
-						</p>
-					</div>
-					<div className="flex gap-3">
-						<Chip
-							startContent={<Users className="w-4 h-4" />}
-							variant="flat"
-							color="primary"
-							size="lg"
-							className="h-12 px-6">
-							{enrollments.length} اعتراض جدید
-						</Chip>
-					</div>
-				</div>
+  return (
+    <div className="min-h-screen bg-neutral-50/50 dark:bg-neutral-900/50" dir="rtl">
+      <div className="max-w-[1400px] mx-auto p-4 lg:p-6 xl:p-8 space-y-6">
+        <div className="space-y-1 mb-8">
+          <h1 className="text-2xl lg:text-3xl xl:text-4xl font-bold">پنل استاد</h1>
+          <p className="text-neutral-600 dark:text-neutral-400">مدیریت دروس و ثبت نمرات</p>
+        </div>
 
-				<div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
-					{/* Grade Assignment Card */}
-					<Card className="xl:col-span-1 border border-neutral-200/50 dark:border-neutral-800/50 hover:border-primary/50 transition-colors">
-						<CardBody className="p-6">
-							<div className="flex items-center gap-3 mb-6">
-								<div className="p-2 rounded-lg bg-primary/10 text-primary">
-									<PenSquare className="w-5 h-5" />
-								</div>
-								<h2 className="text-xl font-bold">ثبت نمره جدید</h2>
-							</div>
+        <div className="grid gap-6">
+          {courses.map((course) => (
+            <Card
+              key={course.id}
+              className="border border-neutral-200/50 dark:border-neutral-800/50"
+            >
+              <CardBody className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <BookOpen className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-bold">{course.name}</h3>
+                  </div>
+                  <Chip
+                    variant="flat"
+                    color="primary"
+                    className="h-8"
+                  >
+                    {course.groups.length} گروه
+                  </Chip>
+                </div>
+                <div className="space-y-2">
+                  {course.groups.map((group) => (
+                    <div
+                      key={group.id}
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50"
+                    >
+                      <span>گروه {group.groupNumber}</span>
+                      <Button
+                        size="sm"
+                        color="primary"
+                        variant="flat"
+                        endContent={<ChevronRight className="w-4 h-4" />}
+                        onClick={() => openScoreModal(course, group)}
+                      >
+                        مدیریت نمرات
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardBody>
+            </Card>
+          ))}
+        </div>
 
-							<div className="space-y-4">
-								<Input
-									type="number"
-									label="شماره دانشجویی"
-									placeholder="مثال: 400123456"
-									value={selectedGroup}
-									onChange={(e) => setSelectedGroup(e.target.value)}
-									variant="bordered"
-									classNames={{
-										label: "text-right",
-										input: "text-right",
-									}}
-								/>
-								<Input
-									label="نام درس"
-									placeholder="مثال: ریاضی ۱"
-									value={selectedGroup}
-									onChange={(e) => setSelectedGroup(e.target.value)}
-									variant="bordered"
-									classNames={{
-										label: "text-right",
-										input: "text-right",
-									}}
-								/>
-								<Input
-									type="number"
-									label="نمره"
-									placeholder="از ۰ تا ۲۰"
-									value={selectedGroup}
-									onChange={(e) => setSelectedGroup(e.target.value)}
-									variant="bordered"
-									classNames={{
-										label: "text-right",
-										input: "text-right",
-									}}
-								/>
-							</div>
+        {error && (
+          <div className="fixed bottom-6 right-6 bg-danger-50 dark:bg-danger-900/30 text-danger-600 dark:text-danger-400 p-4 rounded-xl shadow-lg flex items-center gap-3 max-w-md">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        )}
 
-							<Button
-								color="primary"
-								className="w-full mt-6 h-12 text-base font-medium"
-								startContent={<FileCheck className="w-5 h-5" />}
-								onClick={() =>
-									handleSubmitGrade(
-										Number(selectedGroup),
-										Number(selectedGroup)
-									)
-								}>
-								ثبت نمره
-							</Button>
-						</CardBody>
-					</Card>
-
-					{/* Objections Table Card */}
-					<Card className="xl:col-span-2 border border-neutral-200/50 dark:border-neutral-800/50">
-						<CardBody className="p-0">
-							<div className="p-6 border-b border-neutral-200/50 dark:border-neutral-800/50">
-								<div className="flex items-center justify-between">
-									<div className="flex items-center gap-3">
-										<div className="p-2 rounded-lg bg-primary/10 text-primary">
-											<ScrollText className="w-5 h-5" />
-										</div>
-										<h2 className="text-xl font-bold">لیست اعتراضات</h2>
-									</div>
-									<Chip variant="flat" size="sm" className="h-8 px-4 text-base">
-										{enrollments.length} اعتراض
-									</Chip>
-								</div>
-							</div>
-
-							<div className="overflow-x-auto">
-								<Table
-									removeWrapper
-									aria-label="لیست اعتراضات"
-									classNames={{
-										base: "min-w-full",
-										table: "min-w-full",
-										thead: "bg-neutral-50/50 dark:bg-neutral-800/50",
-										th: [
-											"text-right",
-											"bg-transparent",
-											"text-neutral-700 dark:text-neutral-300",
-											"text-sm",
-											"font-medium",
-											"py-4 px-6",
-											"whitespace-nowrap",
-										].join(" "),
-										td: [
-											"text-right",
-											"py-4 px-6",
-											"text-neutral-600 dark:text-neutral-400",
-											"border-b border-neutral-200/50 dark:border-neutral-800/50",
-										].join(" "),
-									}}>
-									<TableHeader>
-										<TableColumn className="text-right">نام درس</TableColumn>
-										<TableColumn className="text-right">نام دانشجو</TableColumn>
-										<TableColumn className="text-right">نمره</TableColumn>
-										<TableColumn className="text-right">
-											دلیل اعتراض
-										</TableColumn>
-										<TableColumn className="text-right">وضعیت</TableColumn>
-										<TableColumn className="text-right">عملیات</TableColumn>
-									</TableHeader>
-									<TableBody emptyContent="اعتراضی یافت نشد">
-										{enrollments.map((enrollment) => (
-											<TableRow key={enrollment.id}>
-												<TableCell className="font-medium">
-													{enrollment.group.course.name}
-												</TableCell>
-												<TableCell>
-													{enrollment.student.firstName}{" "}
-													{enrollment.student.lastName}
-												</TableCell>
-												<TableCell>{enrollment.score}</TableCell>
-												<TableCell>
-													<p className="max-w-xs truncate">
-														{enrollment.group.groupNumber}
-													</p>
-												</TableCell>
-												<TableCell>
-													<Badge
-														color={enrollment.score ? "success" : "warning"}
-														variant="flat">
-														{enrollment.score ? "بررسی شده" : "در انتظار بررسی"}
-													</Badge>
-												</TableCell>
-												<TableCell>
-													<Button
-														isDisabled={!!enrollment.score}
-														color="success"
-														variant="flat"
-														size="sm"
-														startContent={<Check className="w-4 h-4" />}
-														onClick={() =>
-															handleSubmitGrade(
-																enrollment.id,
-																Number(selectedGroup)
-															)
-														}>
-														تایید بررسی
-													</Button>
-												</TableCell>
-											</TableRow>
-										))}
-									</TableBody>
-								</Table>
-							</div>
-						</CardBody>
-					</Card>
-				</div>
-
-				{/* Error Display */}
-				{error && (
-					<div className="fixed bottom-6 right-6 bg-danger-50 dark:bg-danger-900/30 text-danger-600 dark:text-danger-400 p-4 rounded-xl shadow-lg flex items-center gap-3 animate-fade-in max-w-md">
-						<AlertCircle className="w-5 h-5 flex-shrink-0" />
-						<p className="text-sm font-medium">{error}</p>
-					</div>
-				)}
-			</div>
-		</div>
-	);
+        <ScoreSubmissionModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          groupInfo=
+            {selectedGroup
+              ? {
+                  courseName: selectedGroup.courseName,
+                  groupNumber: selectedGroup.groupNumber,
+                  students: selectedGroup.students,
+                }
+              : null}
+          onSubmitScores={handleSubmitScores}
+        />
+      </div>
+    </div>
+  );
 }
+
