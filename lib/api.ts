@@ -376,12 +376,10 @@ export const api = {
 		}),
 	createEnrollment: (studentId: number, groupId: number) =>
 		axiosInstance.post("/enrollments", { studentId, groupId }),
-	createCourse: (data: {
-		name: string;
-		code: string;
-		units: number;
-		department?: string;
-	}) => axiosInstance.post<Course>("/courses", data),
+        createCourse: (data: {
+                name: string;
+                code: string;
+        }) => axiosInstance.post<Course>("/courses", data),
 	deleteCourse: (id: number) => axiosInstance.delete(`/courses/${id}`),
 	getCourseById: (id: number) => axiosInstance.get(`/courses/${id}`),
 	getStudentCourses: (studentId: number) =>

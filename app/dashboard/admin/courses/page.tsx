@@ -27,12 +27,10 @@ import { useEffect, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 
 interface Course {
-	id: number;
-	name: string;
-	code: string;
-	units: number;
-	department?: string;
-	groups: CourseGroup[];
+        id: number;
+        name: string;
+        code: string;
+        groups: CourseGroup[];
 }
 
 interface CourseGroup {
@@ -52,8 +50,6 @@ export default function CoursesManagement() {
         const [formData, setFormData] = useState({
                 name: "",
                 code: "",
-                units: "",
-                department: "",
         });
 	const [error, setError] = useState("");
 	const { isOpen, onOpen, onClose } = useDisclosure();
@@ -86,25 +82,16 @@ export default function CoursesManagement() {
         };
 
         const handleCreateCourse = async () => {
-                const units = Number(formData.units);
-                if (isNaN(units) || units <= 0) {
-                        setError("تعداد واحد معتبر نیست");
-                        return;
-                }
                 try {
                         await api.createCourse({
                                 name: formData.name,
                                 code: formData.code,
-                                units,
-                                department: formData.department || undefined,
                         });
                         onClose();
                         fetchCourses(page);
                         setFormData({
                                 name: "",
                                 code: "",
-                                units: "",
-                                department: "",
                         });
                         setError("");
                 } catch (err: any) {
@@ -237,23 +224,6 @@ export default function CoursesManagement() {
 										setFormData({ ...formData, code: e.target.value })
 									}
 								/>
-								<Input
-									label="تعداد واحد"
-									placeholder="مثال: 3"
-									type="number"
-									value={formData.units}
-									onChange={(e) =>
-										setFormData({ ...formData, units: e.target.value })
-									}
-								/>
-								<Input
-									label="گروه آموزشی"
-									placeholder="مثال: ریاضی"
-									value={formData.department}
-									onChange={(e) =>
-										setFormData({ ...formData, department: e.target.value })
-									}
-								/>
 							</ModalBody>
 							<ModalFooter>
 								<Button color="danger" variant="light" onPress={onClose}>
@@ -262,9 +232,7 @@ export default function CoursesManagement() {
 								<Button
 									color="primary"
 									onPress={handleCreateCourse}
-									isDisabled={
-										!formData.name || !formData.code || !formData.units
-									}>
+                                                                        isDisabled={!formData.name || !formData.code}>
 									افزودن درس
 								</Button>
 							</ModalFooter>

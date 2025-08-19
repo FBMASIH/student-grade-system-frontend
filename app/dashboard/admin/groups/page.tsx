@@ -40,11 +40,10 @@ interface Group {
 }
 
 interface Course {
-	id: number;
-	name: string;
-	code: string;
-	units: number;
-	professor: { name: string };
+        id: number;
+        name: string;
+        code: string;
+        professor: { name: string };
 }
 
 export default function GroupsManagement() {

@@ -50,13 +50,11 @@ interface Enrollment {
 }
 
 interface CourseWithGroups {
-	id: number;
-	name: string;
-	code: string;
-	units: number;
-	department: string;
-	subject: string;
-	groups: Array<{
+        id: number;
+        name: string;
+        code: string;
+        subject: string;
+        groups: Array<{
 		id: number;
 		groupNumber: number;
 		currentEnrollment: number;
