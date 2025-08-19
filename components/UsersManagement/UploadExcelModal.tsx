@@ -24,12 +24,12 @@ import {
 } from "@nextui-org/react";
 import { AlertCircle } from "lucide-react";
 import {
-	AwaitedReactNode,
-	JSXElementConstructor,
-	ReactElement,
-	ReactNode,
-	ReactPortal,
-	useState,
+        AwaitedReactNode,
+        JSXElementConstructor,
+        ReactElement,
+        ReactNode,
+        ReactPortal,
+        useState,
 } from "react";
 import { toast } from "sonner";
 
@@ -67,8 +67,9 @@ export function UploadExcelModal({
         const [uploadErrors, setUploadErrors] = useState<string[]>([]);
         const [groupId, setGroupId] = useState("");
         const [role, setRole] = useState("student");
+        const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
 
@@ -77,66 +78,91 @@ export function UploadExcelModal({
                         return;
                 }
 
+                setSelectedFile(file);
                 setIsUploading(true);
                 setDuplicateUsers([]);
                 setUploadErrors([]);
 
                 const formData = new FormData();
                 formData.append("file", file);
-                formData.append("groupId", groupId);
-                formData.append("role", role);
 
                 try {
-                        const { data } = await api.uploadUsersExcel(formData, role, Number(groupId));
-			console.log("Upload response:", data);
+                        // Dry run to preview users without saving
+                        const { data } = await api.uploadUsersExcel(
+                                formData,
+                                role,
+                                Number(groupId),
+                                true
+                        );
 
-			const validUsers = [...(data.users || []), ...(data.reactivated || [])];
-			setRegisteredUsers(validUsers);
+                        const validUsers = [...(data.users || []), ...(data.reactivated || [])];
+                        setRegisteredUsers(validUsers);
 
-			setDuplicateUsers(data.duplicates || []);
-			setUploadErrors(data.errors || []);
+                        setDuplicateUsers(data.duplicates || []);
+                        setUploadErrors(data.errors || []);
+                } catch (err: any) {
+                        console.error("Upload error:", err);
+                        toast.error(err.response?.data?.message || "خطا در آپلود فایل");
+                        setRegisteredUsers([]);
+                } finally {
+                        setIsUploading(false);
+                }
+        };
 
-			if (data.users?.length > 0) {
-				toast.success(`${data.users.length} کاربر جدید با موفقیت ثبت شد`);
-			}
-			if (data.reactivated?.length > 0) {
-				toast.success(`${data.reactivated.length} کاربر مجدداً فعال شد`);
-			}
+        const handleConfirmUpload = async () => {
+                if (!selectedFile) {
+                        toast.error("فایلی انتخاب نشده است");
+                        return;
+                }
 
-			data.duplicates?.forEach(
-				(d: { firstName: any; lastName: any; username: any; message: any }) => {
-					toast.warning(
-						`${d.firstName} ${d.lastName} (${d.username}): ${d.message}`
-					);
-				}
-			);
+                if (!groupId) {
+                        toast.error("لطفا شماره گروه را وارد کنید");
+                        return;
+                }
 
-			data.errors?.forEach(
-				(
-					error:
-						| string
-						| number
-						| bigint
-						| boolean
-						| ReactElement<any, string | JSXElementConstructor<any>>
-						| Iterable<ReactNode>
-						| ReactPortal
-						| Promise<AwaitedReactNode>
-						| (() => React.ReactNode)
-						| null
-						| undefined
-				) => {
-					toast.error(error);
-				}
-			);
-		} catch (err: any) {
-			console.error("Upload error:", err);
-			toast.error(err.response?.data?.message || "خطا در آپلود فایل");
-			setRegisteredUsers([]);
-		} finally {
-			setIsUploading(false);
-		}
-	};
+                setIsUploading(true);
+
+                const formData = new FormData();
+                formData.append("file", selectedFile);
+
+                try {
+                        const { data } = await api.uploadUsersExcel(
+                                formData,
+                                role,
+                                Number(groupId)
+                        );
+
+                        const validUsers = [...(data.users || []), ...(data.reactivated || [])];
+                        if (validUsers.length > 0) {
+                                toast.success(`${validUsers.length} کاربر با موفقیت افزوده شد`);
+                        }
+
+                        data.duplicates?.forEach(
+                                (d: { firstName: any; lastName: any; username: any; message: any }) => {
+                                        toast.warning(
+                                                `${d.firstName} ${d.lastName} (${d.username}): ${d.message}`
+                                        );
+                                }
+                        );
+
+                        data.errors?.forEach((error: any) => {
+                                toast.error(error);
+                        });
+
+                        onClose();
+                        setRegisteredUsers([]);
+                        setDuplicateUsers([]);
+                        setUploadErrors([]);
+                        setGroupId("");
+                        setRole("student");
+                        setSelectedFile(null);
+                } catch (err: any) {
+                        console.error("Upload error:", err);
+                        toast.error(err.response?.data?.message || "خطا در ثبت کاربران");
+                } finally {
+                        setIsUploading(false);
+                }
+        };
 
         return (
                 <Modal
@@ -144,6 +170,10 @@ export function UploadExcelModal({
                         onClose={() => {
                                 setGroupId("");
                                 setRole("student");
+                                setRegisteredUsers([]);
+                                setDuplicateUsers([]);
+                                setUploadErrors([]);
+                                setSelectedFile(null);
                                 onClose();
                         }}
                         size="4xl">
@@ -303,11 +333,20 @@ export function UploadExcelModal({
 								)}
 							</div>
 						</ModalBody>
-						<ModalFooter>
-							<Button color="danger" variant="light" onPress={onClose}>
-								انصراف
-							</Button>
-						</ModalFooter>
+                                                <ModalFooter>
+                                                        <Button color="danger" variant="light" onPress={onClose}>
+                                                                انصراف
+                                                        </Button>
+                                                        {registeredUsers.length > 0 && (
+                                                                <Button
+                                                                        color="primary"
+                                                                        onPress={handleConfirmUpload}
+                                                                        isLoading={isUploading}
+                                                                        isDisabled={isUploading}>
+                                                                        تایید و افزودن کاربران
+                                                                </Button>
+                                                        )}
+                                                </ModalFooter>
 					</>
 				)}
 			</ModalContent>
