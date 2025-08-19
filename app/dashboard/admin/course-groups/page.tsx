@@ -165,10 +165,12 @@ export default function CourseGroupsManagement() {
 	const [uploadedUsers, setUploadedUsers] = useState<
 		Array<{ id: number; username: string }>
 	>([]);
-	const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
-	const [isUploading, setIsUploading] = useState(false);
-	const [duplicateUsers, setDuplicateUsers] = useState<DuplicateUser[]>([]);
-	const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+        const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
+        const [isUploading, setIsUploading] = useState(false);
+        const [duplicateUsers, setDuplicateUsers] = useState<DuplicateUser[]>([]);
+        const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+        const [role, setRole] = useState("student");
+        const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
 	useEffect(() => {
 		fetchCourseGroups(page);
@@ -308,107 +310,99 @@ export default function CourseGroupsManagement() {
 		navigator.clipboard.writeText(id.toString());
 	};
 
-	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (!file) return;
+        const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
 
-		setIsUploading(true);
-		setDuplicateUsers([]);
-		setUploadErrors([]);
+                if (!selectedGroupId) {
+                        toast.error("گروه انتخاب نشده است");
+                        return;
+                }
 
-		const formData = new FormData();
-		formData.append("file", file);
+                setSelectedFile(file);
+                setIsUploading(true);
+                setDuplicateUsers([]);
+                setUploadErrors([]);
 
-		try {
-			const { data } = await api.uploadUsersExcel(formData);
-			console.log("Upload response:", data);
+                const formData = new FormData();
+                formData.append("file", file);
 
-			const validUsers = [...(data.users || []), ...(data.reactivated || [])];
-			setRegisteredUsers(validUsers);
+                try {
+                        const { data } = await api.uploadUsersExcel(
+                                formData,
+                                role,
+                                selectedGroupId,
+                                true
+                        );
 
-			setDuplicateUsers(data.duplicates || []);
-			setUploadErrors(data.errors || []);
+                        const validUsers = [...(data.users || []), ...(data.reactivated || [])];
+                        setRegisteredUsers(validUsers);
 
-			if (data.users?.length > 0) {
-			}
-			if (data.reactivated?.length > 0) {
-				toast.success(`${data.reactivated.length} کاربر مجدداً فعال شد`);
-			}
+                        setDuplicateUsers(data.duplicates || []);
+                        setUploadErrors(data.errors || []);
+                } catch (err: any) {
+                        console.error("Upload error:", err);
+                        toast.error(err.response?.data?.message || "خطا در آپلود فایل");
+                        setRegisteredUsers([]);
+                } finally {
+                        setIsUploading(false);
+                }
+        };
 
-			data.duplicates?.forEach(
-				(d: { firstName: any; lastName: any; username: any; message: any }) => {
-					toast.warning(
-						`${d.firstName} ${d.lastName} (${d.username}): ${d.message}`
-					);
-				}
-			);
+        const handleEnrollUploadedUsers = async () => {
+                if (!selectedGroupId) {
+                        toast.error("گروه انتخاب نشده است");
+                        return;
+                }
 
-			data.errors?.forEach(
-				(
-					error:
-						| string
-						| number
-						| bigint
-						| boolean
-						| (() => React.ReactNode)
-						| ReactElement<any, string | JSXElementConstructor<any>>
-						| Iterable<ReactNode>
-						| ReactPortal
-						| Promise<AwaitedReactNode>
-						| null
-						| undefined
-				) => {
-					toast.error(error);
-				}
-			);
-		} catch (err: any) {
-			console.error("Upload error:", err);
-			toast.error(err.response?.data?.message || "خطا در آپلود فایل");
-			setRegisteredUsers([]);
-		} finally {
-			setIsUploading(false);
-		}
-	};
+                if (!registeredUsers.length || !selectedFile) {
+                        toast.error("هیچ دانشجویی برای ثبت‌نام انتخاب نشده است");
+                        return;
+                }
 
-	const handleEnrollUploadedUsers = async () => {
-		if (!selectedGroupId) {
-			toast.error("گروه انتخاب نشده است");
-			return;
-		}
+                setIsUploading(true);
 
-		if (!registeredUsers || registeredUsers.length === 0) {
-			toast.error("هیچ دانشجویی برای ثبت‌نام انتخاب نشده است");
-			return;
-		}
+                try {
+                        const formData = new FormData();
+                        formData.append("file", selectedFile);
 
-		try {
-			const usernames = registeredUsers.map((user) => user.username);
-			const { data } = await courseGroupsApi.addStudentsToGroupByUsername(
-				selectedGroupId,
-				usernames
-			);
+                        const { data } = await api.uploadUsersExcel(
+                                formData,
+                                role,
+                                selectedGroupId
+                        );
 
-			if (data.successful.length > 0) {
-				toast.success(
-					`${data.successful.length} دانشجو با موفقیت ثبت‌نام شدند`
-				);
-			}
+                        const validUsers = [...(data.users || []), ...(data.reactivated || [])];
+                        if (validUsers.length > 0) {
+                                toast.success(`${validUsers.length} کاربر با موفقیت افزوده شد`);
+                        }
 
-			if (data.errors.length > 0) {
-				data.errors.forEach(({ username, reason }) => {
-					toast.error(`${username}: ${reason}`);
-				});
-			}
+                        data.duplicates?.forEach(
+                                (d: { firstName: any; lastName: any; username: any; message: any }) => {
+                                        toast.warning(
+                                                `${d.firstName} ${d.lastName} (${d.username}): ${d.message}`
+                                        );
+                                }
+                        );
 
-			await fetchCourseGroups(page);
-			onUploadExcelClose();
-			setRegisteredUsers([]);
-		} catch (err: any) {
-			const errorResponse = err.response?.data as ApiErrorResponse;
-			toast.error(errorResponse?.message || "خطا در ثبت‌نام دانشجویان");
-			console.error("Enrollment error:", errorResponse || err);
-		}
-	};
+                        data.errors?.forEach((errItem: any) => {
+                                toast.error(errItem);
+                        });
+
+                        await fetchCourseGroups(page);
+                        onUploadExcelClose();
+                        setRegisteredUsers([]);
+                        setDuplicateUsers([]);
+                        setUploadErrors([]);
+                        setSelectedFile(null);
+                } catch (err: any) {
+                        const errorResponse = err.response?.data as ApiErrorResponse;
+                        toast.error(errorResponse?.message || "خطا در ثبت‌نام دانشجویان");
+                        console.error("Enrollment error:", errorResponse || err);
+                } finally {
+                        setIsUploading(false);
+                }
+        };
 
 	const handleDeleteCourseGroup = async (
 		groupId: number,
@@ -743,7 +737,17 @@ export default function CourseGroupsManagement() {
 			</Modal>
 
 			{/* Upload Excel Modal */}
-			<Modal isOpen={isUploadExcelOpen} onClose={onUploadExcelClose} size="4xl">
+                        <Modal
+                                isOpen={isUploadExcelOpen}
+                                onClose={() => {
+                                        setRegisteredUsers([]);
+                                        setDuplicateUsers([]);
+                                        setUploadErrors([]);
+                                        setSelectedFile(null);
+                                        setRole("student");
+                                        onUploadExcelClose();
+                                }}
+                                size="4xl">
 				<ModalContent>
 					{(onClose) => (
 						<>
@@ -755,22 +759,37 @@ export default function CourseGroupsManagement() {
 									فایل اکسل باید شامل ستون username باشد
 								</p>
 							</ModalHeader>
-							<ModalBody>
-								<div className="space-y-4">
-									<Card className="border border-neutral-200 dark:border-neutral-800">
-										<CardBody className="p-4">
-											<Input
-												type="file"
-												accept=".xlsx,.xls,.csv"
-												onChange={handleFileChange}
-												disabled={isUploading}
-												description="فرمت‌های مجاز: Excel (.xlsx, .xls) و CSV"
-												classNames={{
-													input: "cursor-pointer",
-												}}
-											/>
-										</CardBody>
-									</Card>
+                                                        <ModalBody>
+                                                                <div className="space-y-4">
+                                                                        <Select
+                                                                                label="نقش کاربران"
+                                                                                selectedKeys={[role]}
+                                                                                onChange={(e) => setRole(e.target.value)}
+                                                                                className="text-right">
+                                                                                <SelectItem key="student" value="student">
+                                                                                        دانشجو
+                                                                                </SelectItem>
+                                                                                <SelectItem key="teacher" value="teacher">
+                                                                                        استاد
+                                                                                </SelectItem>
+                                                                                <SelectItem key="admin" value="admin">
+                                                                                        مدیر سیستم
+                                                                                </SelectItem>
+                                                                        </Select>
+                                                                        <Card className="border border-neutral-200 dark:border-neutral-800">
+                                                                                <CardBody className="p-4">
+                                                                                        <Input
+                                                                                                type="file"
+                                                                                                accept=".xlsx,.xls,.csv"
+                                                                                                onChange={handleFileChange}
+                                                                                                disabled={isUploading}
+                                                                                                description="فرمت‌های مجاز: Excel (.xlsx, .xls) و CSV"
+                                                                                                classNames={{
+                                                                                                        input: "cursor-pointer",
+                                                                                                }}
+                                                                                        />
+                                                                                </CardBody>
+                                                                        </Card>
 
 									{isUploading && (
 										<div className="flex flex-col items-center gap-2 py-8">
@@ -850,9 +869,9 @@ export default function CourseGroupsManagement() {
 											<CardBody className="p-0">
 												<div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
 													<div className="flex items-center justify-between">
-														<p className="text-success-600 font-medium">
-															{registeredUsers.length} دانشجو استخراج شده
-														</p>
+                                                                                                                <p className="text-success-600 font-medium">
+                                                                                                                        {registeredUsers.length} کاربر استخراج شده
+                                                                                                                </p>
 													</div>
 												</div>
 												<div className="max-h-[400px] overflow-auto">
@@ -887,15 +906,15 @@ export default function CourseGroupsManagement() {
 								<Button color="danger" variant="light" onPress={onClose}>
 									انصراف
 								</Button>
-								{registeredUsers.length > 0 && (
-									<Button
-										color="primary"
-										onPress={handleEnrollUploadedUsers}
-										isLoading={isUploading}
-										startContent={<UserPlus className="w-4 h-4" />}>
-										ثبت‌نام {registeredUsers.length} دانشجو در درس
-									</Button>
-								)}
+                                                                {registeredUsers.length > 0 && (
+                                                                        <Button
+                                                                                color="primary"
+                                                                                onPress={handleEnrollUploadedUsers}
+                                                                                isLoading={isUploading}
+                                                                                startContent={<UserPlus className="w-4 h-4" />}>
+                                                                                افزودن {registeredUsers.length} کاربر به گروه
+                                                                        </Button>
+                                                                )}
 							</ModalFooter>
 						</>
 					)}
