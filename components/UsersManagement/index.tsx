@@ -94,22 +94,30 @@ export function UsersManagement({
 		}
 	}, [selectedUser]);
 
-	const handleCreateUser = async (
-		username: string,
-		password: string,
-		firstName: string,
-		lastName: string,
-		role: string
-	) => {
-		try {
-			await api.createUserManual(username, password, firstName, lastName, role);
-			onUserChange?.(); // Call the callback directly
-			onClose();
-			toast.success("کاربر با موفقیت ایجاد شد");
-		} catch (err: any) {
-			setError(getPersianErrorMessage(err.message));
-		}
-	};
+        const handleCreateUser = async (
+                username: string,
+                password: string,
+                firstName: string,
+                lastName: string,
+                role: string,
+                groupId: number
+        ) => {
+                try {
+                        await api.createUserManual(
+                                username,
+                                password,
+                                firstName,
+                                lastName,
+                                role,
+                                groupId
+                        );
+                        onUserChange?.(); // Call the callback directly
+                        onClose();
+                        toast.success("کاربر با موفقیت ایجاد شد");
+                } catch (err: any) {
+                        setError(getPersianErrorMessage(err.message));
+                }
+        };
 
 	const handleEditUser = (user: User) => {
 		setSelectedUser(user);

@@ -12,18 +12,21 @@ import {
 	SelectItem,
 } from "@nextui-org/react";
 import { GraduationCap, School, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { groupsApi } from "@/lib/api";
+import { Group } from "@/lib/types/common";
 
 interface UserModalProps {
 	isOpen: boolean;
 	onClose: () => void;
-	onSubmit: (
-		username: string,
-		password: string,
-		firstName: string,
-		lastName: string,
-		role: string
-	) => void;
+        onSubmit: (
+                username: string,
+                password: string,
+                firstName: string,
+                lastName: string,
+                role: string,
+                groupId: number
+        ) => void;
 }
 
 const roleOptions = [
@@ -48,21 +51,40 @@ const roleOptions = [
 ];
 
 export function UserModal({ isOpen, onClose, onSubmit }: UserModalProps) {
-	const [username, setUsername] = useState("");
-	const [password, setPassword] = useState("");
-	const [firstName, setFirstName] = useState("");
-	const [lastName, setLastName] = useState("");
-	const [role, setRole] = useState("student");
+        const [username, setUsername] = useState("");
+        const [password, setPassword] = useState("");
+        const [firstName, setFirstName] = useState("");
+        const [lastName, setLastName] = useState("");
+        const [role, setRole] = useState("student");
+        const [groupId, setGroupId] = useState("");
+        const [groups, setGroups] = useState<Group[]>([]);
 
-	const handleSubmit = () => {
-		if (!username || !password || !firstName || !lastName || !role) return;
-		onSubmit(username, password, firstName, lastName, role);
-		setUsername("");
-		setPassword("");
-		setFirstName("");
-		setLastName("");
-		setRole("student");
-	};
+        useEffect(() => {
+                if (isOpen) {
+                        groupsApi.getAllGroups(1, 100).then((res) => {
+                                setGroups(res.data.items || []);
+                        });
+                }
+        }, [isOpen]);
+
+        const handleSubmit = () => {
+                if (!username || !password || !firstName || !lastName || !role || !groupId)
+                        return;
+                onSubmit(
+                        username,
+                        password,
+                        firstName,
+                        lastName,
+                        role,
+                        Number(groupId)
+                );
+                setUsername("");
+                setPassword("");
+                setFirstName("");
+                setLastName("");
+                setRole("student");
+                setGroupId("");
+        };
 
 	return (
 		<Modal
@@ -130,30 +152,49 @@ export function UserModal({ isOpen, onClose, onSubmit }: UserModalProps) {
 										input: "text-right",
 									}}
 								/>
-								<Select
-									label="نقش کاربر"
-									placeholder="نقش کاربر را انتخاب کنید"
-									selectedKeys={[role]}
-									onChange={(e) => setRole(e.target.value)}
-									variant="bordered"
-									classNames={{
-										label: "text-right",
-										value: "text-right",
-										trigger: "h-12",
-									}}>
-									{roleOptions.map((option) => (
-										<SelectItem
-											key={option.value}
-											value={option.value}
-											startContent={
-												<option.icon className={`w-4 h-4 ${option.color}`} />
-											}>
-											{option.label}
-										</SelectItem>
-									))}
-								</Select>
-							</div>
-						</ModalBody>
+                                                                <Select
+                                                                        label="نقش کاربر"
+                                                                        placeholder="نقش کاربر را انتخاب کنید"
+                                                                        selectedKeys={[role]}
+                                                                        onChange={(e) => setRole(e.target.value)}
+                                                                        variant="bordered"
+                                                                        classNames={{
+                                                                                label: "text-right",
+                                                                                value: "text-right",
+                                                                                trigger: "h-12",
+                                                                        }}>
+                                                                        {roleOptions.map((option) => (
+                                                                                <SelectItem
+                                                                                        key={option.value}
+                                                                                        value={option.value}
+                                                                                        startContent={
+                                                                                                <option.icon
+                                                                                                        className={`w-4 h-4 ${option.color}`}
+                                                                                                />
+                                                                                        }>
+                                                                                        {option.label}
+                                                                                </SelectItem>
+                                                                        ))}
+                                                                </Select>
+                                                                <Select
+                                                                        label="گروه"
+                                                                        placeholder="گروه را انتخاب کنید"
+                                                                        selectedKeys={[groupId]}
+                                                                        onChange={(e) => setGroupId(e.target.value)}
+                                                                        variant="bordered"
+                                                                        classNames={{
+                                                                                label: "text-right",
+                                                                                value: "text-right",
+                                                                                trigger: "h-12",
+                                                                        }}>
+                                                                        {groups.map((g) => (
+                                                                                <SelectItem key={g.id} value={g.id.toString()}>
+                                                                                        {g.name}
+                                                                                </SelectItem>
+                                                                        ))}
+                                                                </Select>
+                                                        </div>
+                                                </ModalBody>
 						<ModalFooter>
 							<Button
 								color="danger"

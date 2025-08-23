@@ -494,20 +494,22 @@ export const api = {
 	updateUserRole: (id: number, role: string) =>
 		axiosInstance.patch(`/users/${id}/role`, { role }),
 	deleteUser: (id: number) => axiosInstance.delete(`/users/${id}`),
-	createUserManual: (
-		username: string,
-		password: string,
-		firstName: string,
-		lastName: string,
-		role: string
-	) =>
-		axiosInstance.post("/users/manual", {
-			username,
-			password,
-			firstName,
-			lastName,
-			role,
-		}),
+        createUserManual: (
+                username: string,
+                password: string,
+                firstName: string,
+                lastName: string,
+                role: string,
+                groupId?: number
+        ) =>
+                axiosInstance.post("/users/manual", {
+                        username,
+                        password,
+                        firstName,
+                        lastName,
+                        role,
+                        ...(groupId && { groupId }),
+                }),
         uploadUsersExcel: (
                 formData: FormData,
                 role?: string,
@@ -524,14 +526,15 @@ export const api = {
                 }),
 	updateUser: (
 		id: number,
-		data: {
-			username?: string;
-			password?: string;
-			firstName?: string;
-			lastName?: string;
-			role?: string;
-		}
-	) => axiosInstance.patch(`/users/${id}`, data),
+                data: {
+                        username?: string;
+                        password?: string;
+                        firstName?: string;
+                        lastName?: string;
+                        role?: string;
+                        groupId?: number;
+                }
+        ) => axiosInstance.patch(`/users/${id}`, data),
 	deleteMultipleUsers: (userIds: number[]) =>
 		axiosInstance.post("/users/delete-multiple", { userIds }),
 	deleteAllStudents: () => axiosInstance.get("/users/delete-students"),

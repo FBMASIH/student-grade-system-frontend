@@ -1,6 +1,6 @@
 "use client";
 
-import { api } from "@/lib/api";
+import { api, groupsApi } from "@/lib/api";
 import {
         Button,
         Card,
@@ -29,9 +29,11 @@ import {
         ReactElement,
         ReactNode,
         ReactPortal,
+        useEffect,
         useState,
 } from "react";
 import { toast } from "sonner";
+import { Group } from "@/lib/types/common";
 
 interface RegisteredUser {
 	id: number;
@@ -66,15 +68,24 @@ export function UploadExcelModal({
         const [duplicateUsers, setDuplicateUsers] = useState<DuplicateUser[]>([]);
         const [uploadErrors, setUploadErrors] = useState<string[]>([]);
         const [groupId, setGroupId] = useState("");
+        const [groups, setGroups] = useState<Group[]>([]);
         const [role, setRole] = useState("student");
         const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+        useEffect(() => {
+                if (isOpen) {
+                        groupsApi.getAllGroups(1, 100).then((res) => {
+                                setGroups(res.data.items || []);
+                        });
+                }
+        }, [isOpen]);
 
         const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
 
                 if (!groupId) {
-                        toast.error("لطفا شماره گروه را وارد کنید");
+                        toast.error("لطفا گروه را انتخاب کنید");
                         return;
                 }
 
@@ -116,7 +127,7 @@ export function UploadExcelModal({
                 }
 
                 if (!groupId) {
-                        toast.error("لطفا شماره گروه را وارد کنید");
+                        toast.error("لطفا گروه را انتخاب کنید");
                         return;
                 }
 
@@ -188,13 +199,21 @@ export function UploadExcelModal({
 						</ModalHeader>
 						<ModalBody>
 							<div className="space-y-4">
-                                                                <Input
-                                                                        label="شماره گروه"
-                                                                        value={groupId}
+                                                                <Select
+                                                                        label="گروه"
+                                                                        placeholder="گروه را انتخاب کنید"
+                                                                        selectedKeys={[groupId]}
                                                                         onChange={(e) => setGroupId(e.target.value)}
-                                                                        variant="bordered"
                                                                         className="text-right"
-                                                                />
+                                                                        variant="bordered">
+                                                                        {groups.map((g) => (
+                                                                                <SelectItem
+                                                                                        key={g.id}
+                                                                                        value={g.id.toString()}>
+                                                                                        {g.name}
+                                                                                </SelectItem>
+                                                                        ))}
+                                                                </Select>
                                                                 <Select
                                                                         label="نقش کاربران"
                                                                         selectedKeys={[role]}
