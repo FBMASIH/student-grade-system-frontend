@@ -14,33 +14,30 @@ export default function LoginPage() {
 	const [isLoading, setIsLoading] = useState(false);
 	const router = useRouter();
 	const pathname = usePathname();
-	const { token, setToken, setRole } = useAuthStore();
+        const { token, setToken, setUser } = useAuthStore();
 
-	// Check auth status and redirect accordingly
-	useEffect(() => {
-		const checkAuth = async () => {
-			// If we have a token, verify it and redirect
-			if (token) {
-				try {
-					const response = await api.getCurrentUser();
-					if (response.data.role) {
-						setRole(response.data.role);
-						router.replace("/dashboard");
-					} else {
-						// Invalid token
-						useAuthStore.getState().logout();
-					}
-				} catch (err) {
-					// Token verification failed
-					useAuthStore.getState().logout();
-				}
-			}
-		};
+        // Check auth status and redirect accordingly
+        useEffect(() => {
+                const checkAuth = async () => {
+                        if (token) {
+                                try {
+                                        const { data } = await api.getCurrentUser();
+                                        if (data.role) {
+                                                setUser({ id: data.id, role: data.role });
+                                                router.replace(`/dashboard/${data.role}`);
+                                        } else {
+                                                useAuthStore.getState().logout();
+                                        }
+                                } catch {
+                                        useAuthStore.getState().logout();
+                                }
+                        }
+                };
 
-		if (token && pathname === "/login") {
-			checkAuth();
-		}
-	}, [token, router, pathname, setRole]);
+                if (token && pathname === "/login") {
+                        checkAuth();
+                }
+        }, [token, router, pathname, setUser]);
 
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -48,10 +45,10 @@ export default function LoginPage() {
 		setIsLoading(true);
 
 		try {
-			const { data } = await api.login(username, password);
-			setToken(data.access_token);
-			setRole(data.role);
-			router.push("/dashboard");
+                        const { data } = await api.login(username, password);
+                        setToken(data.access_token);
+                        setUser({ id: data.id, role: data.role });
+                        router.push(`/dashboard/${data.role}`);
 		} catch (err: any) {
 			setError(
 				err.response?.data?.message || "نام کاربری یا رمز عبور اشتباه است."
