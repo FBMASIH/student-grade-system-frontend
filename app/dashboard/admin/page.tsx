@@ -19,6 +19,7 @@ import CourseGroupsManagement from "./course-groups/page";
 import CoursesManagement from "./courses/page";
 import EnrollmentsManagement from "./enrollments/page";
 import AdminScoreManagement from "./scores/page";
+import GroupManagement from "./group-management/page";
 
 export default function AdminDashboard() {
 	const { token } = useAuthStore();
@@ -129,6 +130,17 @@ export default function AdminDashboard() {
                                                                         </div>
                                                                 }>
                                                                 <CoursesManagement />
+                                                        </Tab>
+
+                                                        <Tab
+                                                                key="groups"
+                                                                title={
+                                                                        <div className="flex items-center gap-2">
+                                                                                <Users className="w-4 h-4" />
+                                                                                <span>گروه‌ها</span>
+                                                                        </div>
+                                                                }>
+                                                                <GroupManagement />
                                                         </Tab>
 
                                                         <Tab

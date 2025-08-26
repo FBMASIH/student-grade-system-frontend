@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ScoreSubmissionModal } from "./components/ScoreSubmissionModal";
+import { ScoreUploadModal } from "./components/ScoreUploadModal";
 
 interface Group {
   id: number;
@@ -40,6 +41,8 @@ export default function TeacherDashboard() {
     students: Student[];
   } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadGroupId, setUploadGroupId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -88,6 +91,11 @@ export default function TeacherDashboard() {
       setError(err.message);
       toast.error("خطا در دریافت لیست دانشجویان");
     }
+  };
+
+  const openUploadModal = (group: Group) => {
+    setUploadGroupId(group.id);
+    setIsUploadModalOpen(true);
   };
 
   const handleSubmitScores = async (scores: Record<number, number>) => {
@@ -141,15 +149,25 @@ export default function TeacherDashboard() {
                       className="flex items-center justify-between p-2 rounded-lg hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50"
                     >
                       <span>گروه {group.groupNumber}</span>
-                      <Button
-                        size="sm"
-                        color="primary"
-                        variant="flat"
-                        endContent={<ChevronRight className="w-4 h-4" />}
-                        onClick={() => openScoreModal(course, group)}
-                      >
-                        مدیریت نمرات
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          color="primary"
+                          variant="flat"
+                          endContent={<ChevronRight className="w-4 h-4" />}
+                          onClick={() => openScoreModal(course, group)}
+                        >
+                          مدیریت نمرات
+                        </Button>
+                        <Button
+                          size="sm"
+                          color="secondary"
+                          variant="flat"
+                          onClick={() => openUploadModal(group)}
+                        >
+                          آپلود اکسل
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -177,6 +195,11 @@ export default function TeacherDashboard() {
                 }
               : null}
           onSubmitScores={handleSubmitScores}
+        />
+        <ScoreUploadModal
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          groupId={uploadGroupId}
         />
       </div>
     </div>
