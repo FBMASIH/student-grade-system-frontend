@@ -178,10 +178,13 @@ export const groupsApi = {
 			params: { page, limit, search },
 		}),
 
-	createGroup: (data: { name: string }) =>
-		axiosInstance.post<Group>("/groups", data),
+        createGroup: (data: { name: string }) =>
+                axiosInstance.post<Group>("/groups", data),
 
-	deleteGroup: (id: number) => axiosInstance.delete(`/groups/${id}`),
+        updateGroup: (id: number, data: { name: string }) =>
+                axiosInstance.patch<Group>(`/groups/${id}`, data),
+
+        deleteGroup: (id: number) => axiosInstance.delete(`/groups/${id}`),
 
 	removeStudentsFromGroup: (groupId: number, studentIds: number[]) =>
 		axiosInstance.delete(`/groups/${groupId}/students`, {
@@ -615,10 +618,17 @@ export const api = {
 		),
 	updateScore: (enrollmentId: number, score: number) =>
 		axiosInstance.put(`/enrollments/${enrollmentId}/score`, { score }),
-	submitGroupScores: (
-		groupId: number,
-		scores: Array<{ studentId: number; score: number }>
-	) => axiosInstance.post(`/groups/${groupId}/scores`, { scores }),
+        submitGroupScores: (
+                groupId: number,
+                scores: Array<{ studentId: number; score: number }>
+        ) => axiosInstance.post(`/groups/${groupId}/scores`, { scores }),
+        uploadGroupScoresExcel: (
+                groupId: number,
+                formData: FormData,
+        ) =>
+                axiosInstance.post(`/groups/${groupId}/scores/upload-excel`, formData, {
+                        headers: { "Content-Type": "multipart/form-data" },
+                }),
 };
 
 // Export the axios instance if needed elsewhere

@@ -12,9 +12,8 @@ import {
 	SelectItem,
 } from "@nextui-org/react";
 import { GraduationCap, School, ShieldCheck } from "lucide-react";
-import { useEffect, useState } from "react";
-import { groupsApi } from "@/lib/api";
-import { Group } from "@/lib/types/common";
+import { useState } from "react";
+import { GroupSelect } from "@/components/GroupSelect";
 
 interface UserModalProps {
 	isOpen: boolean;
@@ -57,15 +56,6 @@ export function UserModal({ isOpen, onClose, onSubmit }: UserModalProps) {
         const [lastName, setLastName] = useState("");
         const [role, setRole] = useState("student");
         const [groupId, setGroupId] = useState("");
-        const [groups, setGroups] = useState<Group[]>([]);
-
-        useEffect(() => {
-                if (isOpen) {
-                        groupsApi.getAllGroups(1, 100).then((res) => {
-                                setGroups(res.data.items || []);
-                        });
-                }
-        }, [isOpen]);
 
         const handleSubmit = () => {
                 if (!username || !password || !firstName || !lastName || !role || !groupId)
@@ -176,23 +166,7 @@ export function UserModal({ isOpen, onClose, onSubmit }: UserModalProps) {
                                                                                 </SelectItem>
                                                                         ))}
                                                                 </Select>
-                                                                <Select
-                                                                        label="گروه"
-                                                                        placeholder="گروه را انتخاب کنید"
-                                                                        selectedKeys={[groupId]}
-                                                                        onChange={(e) => setGroupId(e.target.value)}
-                                                                        variant="bordered"
-                                                                        classNames={{
-                                                                                label: "text-right",
-                                                                                value: "text-right",
-                                                                                trigger: "h-12",
-                                                                        }}>
-                                                                        {groups.map((g) => (
-                                                                                <SelectItem key={g.id} value={g.id.toString()}>
-                                                                                        {g.name}
-                                                                                </SelectItem>
-                                                                        ))}
-                                                                </Select>
+                                                                <GroupSelect value={groupId} onChange={setGroupId} />
                                                         </div>
                                                 </ModalBody>
 						<ModalFooter>
