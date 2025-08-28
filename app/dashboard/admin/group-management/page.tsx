@@ -43,7 +43,7 @@ export default function GroupManagement() {
       const res = await groupsApi.getAllGroups(currentPage, 10, query);
       const data = res.data as PaginatedResponse<Group>;
       setGroups(data.items);
-      setTotalPages(data.meta.totalPages);
+      setTotalPages(data?.meta?.totalPages ?? 1);
     } catch (err: any) {
       setError(err.message);
       setGroups([]);

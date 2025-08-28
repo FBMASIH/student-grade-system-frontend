@@ -65,8 +65,8 @@ export default function CoursesManagement() {
                         const response = await api.getAllCourses(currentPage, 10, query);
                         const paginatedData = response.data as PaginatedResponse;
 
-			setCourses(paginatedData.items);
-			setTotalPages(paginatedData.meta.totalPages);
+                        setCourses(paginatedData.items);
+                        setTotalPages(paginatedData?.meta?.totalPages ?? 1);
 		} catch (err: any) {
 			console.error("Error fetching courses:", err);
 			setError(err.message);

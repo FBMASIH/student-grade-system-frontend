@@ -78,8 +78,8 @@ export const useUsers = ({
 
                                 if (response.data && Array.isArray(response.data.items)) {
                                         setUsers(response.data.items);
-                                        setTotalPages(response.data.meta.totalPages || 1);
-                                        setTotalItems(response.data.meta.totalItems || 0);
+                                        setTotalPages(response.data?.meta?.totalPages ?? 1);
+                                        setTotalItems(response.data?.meta?.totalItems ?? 0);
                                 }
 			} catch (err) {
 				if ((err as Error).name !== "AbortError") {

@@ -46,9 +46,9 @@ export function TicketList({
 	const fetchTickets = async (currentPage: number) => {
 		try {
 			const response = await api.getAllTickets(currentPage, 10);
-			const paginatedData = response.data as PaginatedResponse;
-			setTickets(paginatedData.items);
-			setTotalPages(paginatedData.meta.totalPages);
+                        const paginatedData = response.data as PaginatedResponse;
+                        setTickets(paginatedData.items);
+                        setTotalPages(paginatedData?.meta?.totalPages ?? 1);
 			setIsLoading(false);
 		} catch (err: any) {
 			setError(err.message);

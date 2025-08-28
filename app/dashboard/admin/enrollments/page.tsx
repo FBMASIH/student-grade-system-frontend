@@ -66,8 +66,8 @@ export default function EnrollmentsManagement() {
 			);
 			const paginatedData = response.data as PaginatedResponse;
 
-			setEnrollments(paginatedData.items);
-			setTotalPages(paginatedData.meta.totalPages);
+                        setEnrollments(paginatedData.items);
+                        setTotalPages(paginatedData?.meta?.totalPages ?? 1);
 		} catch (err: any) {
 			setError(err.message);
 			setEnrollments([]);
