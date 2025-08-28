@@ -65,8 +65,8 @@ export default function ScoresManagement() {
 			const response = await api.getAllEnrollments(currentPage, 10, query);
 			const paginatedData = response.data as PaginatedResponse;
 
-			setEnrollments(paginatedData.items);
-			setTotalPages(paginatedData.meta.totalPages);
+                        setEnrollments(paginatedData.items);
+                        setTotalPages(paginatedData?.meta?.totalPages ?? 1);
 		} catch (err: any) {
 			console.error("Error fetching enrollments:", err);
 			setError(err.message);

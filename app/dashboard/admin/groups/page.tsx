@@ -71,8 +71,8 @@ export default function GroupsManagement() {
 				10,
 				searchQuery
 			);
-			setGroups(response.data.items);
-			setTotalPages(response.data.meta.totalPages);
+                        setGroups(response.data.items);
+                        setTotalPages(response.data?.meta?.totalPages ?? 1);
 		} catch (err: any) {
 			console.error("Error fetching groups:", err);
 			setError(err.message);

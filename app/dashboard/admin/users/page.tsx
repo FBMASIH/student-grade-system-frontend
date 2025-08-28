@@ -54,8 +54,8 @@ export default function UserManagement() {
 			const response = await api.getUsers(currentPage, 10, query);
 			const paginatedData = response.data as PaginatedResponse;
 
-			setUsers(paginatedData.items);
-			setTotalPages(paginatedData.meta.totalPages);
+                        setUsers(paginatedData.items);
+                        setTotalPages(paginatedData?.meta?.totalPages ?? 1);
 		} catch (err: any) {
 			console.error("Error fetching users:", err);
 			setError(err.message);
