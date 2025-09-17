@@ -47,19 +47,27 @@ import {
 import { toast } from "sonner";
 
 interface CourseGroup {
-	id: number;
-	groupNumber: number;
-	currentEnrollment: number;
-	course: { id: number; name: string };
-	professor: { id: number; username: string; role: string };
+        id: number;
+        groupNumber: number;
+        currentEnrollment: number;
+        course: { id: number; name: string };
+        professor: {
+                id: number;
+                username: string;
+                role: string;
+                firstName?: string;
+                lastName?: string;
+        };
 }
 
 interface GroupStudentStatus {
-	id: number;
-	username: string;
-	isEnrolled: boolean;
-	canEnroll: boolean;
-	enrollmentStatus: "enrolled" | "can_enroll" | "cannot_enroll";
+        id: number;
+        username: string;
+        firstName?: string;
+        lastName?: string;
+        isEnrolled: boolean;
+        canEnroll: boolean;
+        enrollmentStatus: "enrolled" | "can_enroll" | "cannot_enroll";
 }
 
 interface GroupStatusResponse {
@@ -74,10 +82,10 @@ interface GroupStatusResponse {
 }
 
 interface RegisteredUser {
-	id: number;
-	username: string;
-	firstName: string;
-	lastName: string;
+        id: number;
+        username: string;
+        firstName: string;
+        lastName: string;
 }
 
 interface ApiErrorResponse {
@@ -106,12 +114,12 @@ interface BulkEnrollmentResponse {
 }
 
 interface GroupStudent {
-	id: number;
-	username: string;
-	firstName: string;
-	lastName: string;
-	isEnrolled: boolean;
-	canEnroll: boolean;
+        id: number;
+        username: string;
+        firstName: string;
+        lastName: string;
+        isEnrolled: boolean;
+        canEnroll: boolean;
 }
 
 interface GroupInfo {
@@ -128,8 +136,10 @@ interface Course {
 }
 
 interface Professor {
-	id: number;
-	username: string;
+        id: number;
+        username: string;
+        firstName?: string;
+        lastName?: string;
 }
 
 export default function CourseGroupsManagement() {
@@ -220,16 +230,22 @@ export default function CourseGroupsManagement() {
                 void fetchCoursesAndProfessors();
         }, [fetchCoursesAndProfessors]);
 
-	const fetchStudents = async () => {
-		try {
-			const { data } = await api.getUsers(1, 100, undefined, "student");
-			const usersData = data as PaginatedResponse;
-			setStudents(usersData.items);
-		} catch (err: any) {
-			setError(err.message);
-			setStudents([]);
-		}
-	};
+        const formatUserName = (
+                user?: {
+                        firstName?: string | null;
+                        lastName?: string | null;
+                        username?: string | null;
+                } | null
+        ) => {
+                if (!user) return "نامشخص";
+                const parts = [user.firstName, user.lastName]
+                        .map((part) => part?.trim())
+                        .filter(Boolean) as string[];
+                if (parts.length > 0) {
+                        return parts.join(" ");
+                }
+                return user.username ?? "نامشخص";
+        };
 
         const handleSearch = (value: string) => {
                 setSearchQuery(value);
@@ -515,9 +531,9 @@ export default function CourseGroupsManagement() {
 									</TableCell>
 									<TableCell>{group?.course?.name ?? "نامشخص"}</TableCell>
 									<TableCell>{group?.currentEnrollment}</TableCell>
-									<TableCell>
-										{group?.professor?.username ?? "نامشخص"}
-									</TableCell>
+                                                                        <TableCell>
+                                                                                {formatUserName(group?.professor)}
+                                                                        </TableCell>
 									<TableCell>
 										<Button
 											color="danger"
@@ -605,11 +621,11 @@ export default function CourseGroupsManagement() {
 									}
 									isLoading={isLoadingForm}>
 									{Array.isArray(professors)
-										? professors.map((prof) => (
-												<SelectItem key={prof.id} value={prof.id}>
-													{prof.username}
-												</SelectItem>
-										  ))
+                                                                                ? professors.map((prof) => (
+                                                                                                <SelectItem key={prof.id} value={prof.id}>
+                                                                                                        {formatUserName(prof)}
+                                                                                                </SelectItem>
+                                                                                  ))
 										: null}
 								</Select>
 							</ModalBody>
@@ -670,7 +686,7 @@ export default function CourseGroupsManagement() {
 												}}>
 												<TableHeader>
 													<TableColumn>انتخاب</TableColumn>
-													<TableColumn>نام کاربری</TableColumn>
+                                                                                                        <TableColumn>نام دانشجو</TableColumn>
 													<TableColumn>وضعیت</TableColumn>
 												</TableHeader>
 												<TableBody>
@@ -679,18 +695,20 @@ export default function CourseGroupsManagement() {
 															<TableCell>
                                                                                                                        <Checkbox
                                                                                                                                isSelected={selectedStudents.includes(
-                                                                                                                                       student.id
+                                                                                                                                        student.id
                                                                                                                                )}
                                                                                                                                onValueChange={() =>
-                                                                                                                                       handleStudentSelection(student.id)
+                                                                                                                                        handleStudentSelection(student.id)
                                                                                                                                }
                                                                                                                                isDisabled={
-                                                                                                                                       !student.canEnroll && !student.isEnrolled
+                                                                                                                                        !student.canEnroll && !student.isEnrolled
                                                                                                                                }
-                                                                                                                               aria-label={`انتخاب ${student.username}`}
+                                                                                                                               aria-label={`انتخاب ${formatUserName(student)}`}
                                                                                                                        />
-															</TableCell>
-															<TableCell>{student.username}</TableCell>
+                                                                                                                       </TableCell>
+                                                                                                                        <TableCell>
+                                                                                                                                {formatUserName(student)}
+                                                                                                                        </TableCell>
 															<TableCell>
 																{student.isEnrolled ? (
 																	<Chip

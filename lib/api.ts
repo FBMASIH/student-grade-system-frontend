@@ -174,19 +174,21 @@ interface Course {
 }
 
 interface GroupResponse {
-	id: number;
-	groupNumber: number;
-	currentEnrollment: number;
-	capacity: number;
-	course: {
-		id: number;
-		name: string;
-	};
-	professor: {
-		id: number;
-		username: string;
-		role: string; // Add role property
-	};
+        id: number;
+        groupNumber: number;
+        currentEnrollment: number;
+        capacity: number;
+        course: {
+                id: number;
+                name: string;
+        };
+        professor: {
+                id: number;
+                username: string;
+                firstName?: string;
+                lastName?: string;
+                role: string; // Add role property
+        };
 }
 
 interface GroupStudentStatus {
@@ -232,6 +234,8 @@ export const courseGroupsApi = {
                         students: Array<{
                                 id: number;
                                 username: string;
+                                firstName?: string;
+                                lastName?: string;
                                 isEnrolled: boolean;
                                 canEnroll: boolean;
                         }>;

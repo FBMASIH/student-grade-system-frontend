@@ -39,40 +39,46 @@ export interface Course {
 }
 
 export interface CourseAssignment {
-	id: number;
-	groupId: number;
-	courseId: number;
-	professorId: number;
-	capacity: number;
-	currentEnrollment: number;
-	course: Course;
-	professor: {
-		id: number;
-		username: string;
-		role: string;
-	};
+        id: number;
+        groupId: number;
+        courseId: number;
+        professorId: number;
+        capacity: number;
+        currentEnrollment: number;
+        course: Course;
+        professor: {
+                id: number;
+                username: string;
+                role: string;
+                firstName?: string;
+                lastName?: string;
+        };
 }
 
 export interface Enrollment {
-	id: number;
-	student: {
-		id: number;
-		username: string;
-	};
-	group: {
-		id: number;
+        id: number;
+        student: {
+                id: number;
+                username: string;
+                firstName?: string;
+                lastName?: string;
+        };
+        group: {
+                id: number;
                 groupNumber: number;
                 course: {
                         id: number;
                         name: string;
                         code: string;
                 };
-		professor: {
-			id: number;
-			username: string;
-		};
-	};
-	score: number | null;
+                professor: {
+                        id: number;
+                        username: string;
+                        firstName?: string;
+                        lastName?: string;
+                };
+        };
+        score: number | null;
 	createdAt: Date;
 	isActive: boolean;
 }
