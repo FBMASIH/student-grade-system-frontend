@@ -35,13 +35,14 @@ import {
 	UserPlus,
 } from "lucide-react";
 import {
-	AwaitedReactNode,
-	JSXElementConstructor,
-	ReactElement,
-	ReactNode,
-	ReactPortal,
-	useEffect,
-	useState,
+        AwaitedReactNode,
+        JSXElementConstructor,
+        ReactElement,
+        ReactNode,
+        ReactPortal,
+        useCallback,
+        useEffect,
+        useState,
 } from "react";
 import { toast } from "sonner";
 
@@ -172,34 +173,29 @@ export default function CourseGroupsManagement() {
         const [role, setRole] = useState("student");
         const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-	useEffect(() => {
-		fetchCourseGroups(page);
-		fetchCoursesAndProfessors();
-	}, [page]);
+        const fetchCourseGroups = useCallback(async (currentPage: number) => {
+                try {
+                        setIsLoading(true);
+                        const { data } = await courseGroupsApi.getAllGroups(
+                                currentPage,
+                                10,
+                                searchQuery
+                        );
+                        setCourseGroups(data?.items || []);
+                        setTotalPages(data?.meta?.totalPages || 1);
+                } catch (err: any) {
+                        toast.error(err.response?.data?.message || "خطا در دریافت گروه‌ها");
+                } finally {
+                        setIsLoading(false);
+                }
+        }, [searchQuery]);
 
-	const fetchCourseGroups = async (currentPage: number) => {
-		try {
-			setIsLoading(true);
-			const { data } = await courseGroupsApi.getAllGroups(
-				currentPage,
-				10,
-				searchQuery
-			);
-			setCourseGroups(data?.items || []);
-			setTotalPages(data?.meta?.totalPages || 1);
-		} catch (err: any) {
-			toast.error(err.response?.data?.message || "خطا در دریافت گروه‌ها");
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	const fetchCoursesAndProfessors = async () => {
-		try {
-			setIsLoadingForm(true);
-			const [coursesRes, usersRes] = await Promise.all([
-				api.getAllCourses(1, 100),
-				api.getUsers(1, 100, undefined, "teacher"),
+        const fetchCoursesAndProfessors = useCallback(async () => {
+                try {
+                        setIsLoadingForm(true);
+                        const [coursesRes, usersRes] = await Promise.all([
+                                api.getAllCourses(1, 100),
+                                api.getUsers(1, 100, undefined, "teacher"),
 			]);
 
 			const coursesData = coursesRes.data as PaginatedResponse<Course>;
@@ -211,10 +207,18 @@ export default function CourseGroupsManagement() {
 			setError(err.message);
 			setCourses([]);
 			setProfessors([]);
-		} finally {
-			setIsLoadingForm(false);
-		}
-	};
+                } finally {
+                        setIsLoadingForm(false);
+                }
+        }, []);
+
+        useEffect(() => {
+                void fetchCourseGroups(page);
+        }, [fetchCourseGroups, page]);
+
+        useEffect(() => {
+                void fetchCoursesAndProfessors();
+        }, [fetchCoursesAndProfessors]);
 
 	const fetchStudents = async () => {
 		try {
@@ -227,21 +231,20 @@ export default function CourseGroupsManagement() {
 		}
 	};
 
-	const handleSearch = (value: string) => {
-		setSearchQuery(value);
-		setPage(1);
-		fetchCourseGroups(1);
-	};
+        const handleSearch = (value: string) => {
+                setSearchQuery(value);
+                setPage(1);
+        };
 
 	const handleCreateGroup = async () => {
 		try {
-			await courseGroupsApi.createGroup({
-				courseId: parseInt(formData.courseId),
-				professorId: parseInt(formData.professorId),
-			});
-			toast.success("گروه جدید با موفقیت ایجاد شد");
-			onClose();
-			fetchCourseGroups(page);
+                        await courseGroupsApi.createGroup({
+                                courseId: parseInt(formData.courseId),
+                                professorId: parseInt(formData.professorId),
+                        });
+                        toast.success("گروه جدید با موفقیت ایجاد شد");
+                        onClose();
+                        await fetchCourseGroups(page);
 			setFormData({
 				courseId: "",
 				professorId: "",
@@ -286,13 +289,13 @@ export default function CourseGroupsManagement() {
 		if (!selectedGroupId) return;
 
 		try {
-			await courseGroupsApi.addStudentsToGroup(
-				selectedGroupId,
-				selectedStudents
-			);
-			toast.success("دانشجویان با موفقیت به گروه اضافه شدند");
-			onManageStudentsClose();
-			fetchCourseGroups(page);
+                        await courseGroupsApi.addStudentsToGroup(
+                                selectedGroupId,
+                                selectedStudents
+                        );
+                        toast.success("دانشجویان با موفقیت به گروه اضافه شدند");
+                        onManageStudentsClose();
+                        await fetchCourseGroups(page);
 		} catch (err: any) {
 			toast.error(err.response?.data?.message || "خطا در افزودن دانشجویان");
 		}
@@ -418,14 +421,14 @@ export default function CourseGroupsManagement() {
 		)
 			return;
 
-		try {
-			await courseGroupsApi.deleteGroup(groupId);
-			toast.success("گروه درسی با موفقیت حذف شد");
-			fetchCourseGroups(page);
-		} catch (err: any) {
-			toast.error(err.response?.data?.message || "خطا در حذف گروه درسی");
-		}
-	};
+                try {
+                        await courseGroupsApi.deleteGroup(groupId);
+                        toast.success("گروه درسی با موفقیت حذف شد");
+                        await fetchCourseGroups(page);
+                } catch (err: any) {
+                        toast.error(err.response?.data?.message || "خطا در حذف گروه درسی");
+                }
+        };
 
 	const handleBulkEnrollment = async () => {
 		if (!selectedGroupId || !registeredUsers.length) return;
@@ -483,6 +486,7 @@ export default function CourseGroupsManagement() {
                                         onChange={(e) => handleSearch(e.target.value)}
                                         startContent={<Search className="w-4 h-4 text-neutral-500" />}
                                         className="w-full max-w-xs"
+                                        aria-label="جستجو در گروه‌های درسی"
                                 />
                         </div>
 
@@ -554,14 +558,15 @@ export default function CourseGroupsManagement() {
 				</CardBody>
 			</Card>
 
-			<div className="flex justify-center">
-				<Pagination
-					total={totalPages}
-					initialPage={1}
-					page={page}
-					onChange={(page) => setPage(page)}
-				/>
-			</div>
+                        <div className="flex justify-center">
+                                <Pagination
+                                        total={totalPages}
+                                        initialPage={1}
+                                        page={page}
+                                        onChange={(page) => setPage(page)}
+                                        aria-label="صفحه‌بندی گروه‌های درسی"
+                                />
+                        </div>
 
 			{error && (
 				<div className="fixed bottom-6 right-6 bg-danger-50 dark:bg-danger-900/30 text-danger-600 dark:text-danger-400 p-4 rounded-xl shadow-lg flex items-center gap-3">
@@ -649,10 +654,11 @@ export default function CourseGroupsManagement() {
 							</ModalHeader>
 							<ModalBody>
 								<div className="flex flex-col gap-4">
-									<Input
-										placeholder="جستجوی دانشجو..."
-										startContent={<Search className="w-4 h-4" />}
-									/>
+                                                                        <Input
+                                                                                placeholder="جستجوی دانشجو..."
+                                                                                startContent={<Search className="w-4 h-4" />}
+                                                                                aria-label="جستجوی دانشجو در گروه"
+                                                                        />
 
 									<Card>
 										<CardBody className="p-0">
@@ -671,17 +677,18 @@ export default function CourseGroupsManagement() {
 													{students.map((student) => (
 														<TableRow key={student.id}>
 															<TableCell>
-																<Checkbox
-																	isSelected={selectedStudents.includes(
-																		student.id
-																	)}
-																	onValueChange={() =>
-																		handleStudentSelection(student.id)
-																	}
-																	isDisabled={
-																		!student.canEnroll && !student.isEnrolled
-																	}
-																/>
+                                                                                                                       <Checkbox
+                                                                                                                               isSelected={selectedStudents.includes(
+                                                                                                                                       student.id
+                                                                                                                               )}
+                                                                                                                               onValueChange={() =>
+                                                                                                                                       handleStudentSelection(student.id)
+                                                                                                                               }
+                                                                                                                               isDisabled={
+                                                                                                                                       !student.canEnroll && !student.isEnrolled
+                                                                                                                               }
+                                                                                                                               aria-label={`انتخاب ${student.username}`}
+                                                                                                                       />
 															</TableCell>
 															<TableCell>{student.username}</TableCell>
 															<TableCell>
@@ -778,16 +785,17 @@ export default function CourseGroupsManagement() {
                                                                         </Select>
                                                                         <Card className="border border-neutral-200 dark:border-neutral-800">
                                                                                 <CardBody className="p-4">
-                                                                                        <Input
-                                                                                                type="file"
-                                                                                                accept=".xlsx,.xls,.csv"
-                                                                                                onChange={handleFileChange}
-                                                                                                disabled={isUploading}
-                                                                                                description="فرمت‌های مجاز: Excel (.xlsx, .xls) و CSV"
-                                                                                                classNames={{
-                                                                                                        input: "cursor-pointer",
-                                                                                                }}
-                                                                                        />
+                                                                                                <Input
+                                                                                                        type="file"
+                                                                                                        accept=".xlsx,.xls,.csv"
+                                                                                                        onChange={handleFileChange}
+                                                                                                        disabled={isUploading}
+                                                                                                        description="فرمت‌های مجاز: Excel (.xlsx, .xls) و CSV"
+                                                                                                        classNames={{
+                                                                                                                input: "cursor-pointer",
+                                                                                                        }}
+                                                                                                        aria-label="آپلود فایل کاربران"
+                                                                                                />
                                                                                 </CardBody>
                                                                         </Card>
 

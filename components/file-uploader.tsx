@@ -31,13 +31,14 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
 
 	return (
 		<>
-			<input
-				type="file"
-				ref={fileInputRef}
-				onChange={handleFileChange}
-				accept={accept}
-				style={{ display: "none" }}
-			/>
+                        <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                accept={accept}
+                                style={{ display: "none" }}
+                                aria-label="انتخاب فایل برای آپلود"
+                        />
 			<Button
 				color="primary"
 				variant="flat"

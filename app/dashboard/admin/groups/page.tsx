@@ -143,13 +143,14 @@ export default function GroupsManagement() {
 					) : (
 						<>
 							<div className="p-4 border-b border-neutral-200/50 dark:border-neutral-800/50">
-								<Input
-									placeholder="جستجو در گروه‌ها..."
-									value={searchQuery}
-									onChange={(e) => handleSearch(e.target.value)}
-									startContent={<Search className="w-4 h-4 text-neutral-500" />}
-									className="w-full sm:w-72"
-								/>
+                                                                <Input
+                                                                        placeholder="جستجو در گروه‌ها..."
+                                                                        value={searchQuery}
+                                                                        onChange={(e) => handleSearch(e.target.value)}
+                                                                        startContent={<Search className="w-4 h-4 text-neutral-500" />}
+                                                                        className="w-full sm:w-72"
+                                                                        aria-label="جستجو در گروه‌ها"
+                                                                />
 							</div>
 
 							<Table aria-label="لیست گروه‌ها">
@@ -190,14 +191,15 @@ export default function GroupsManagement() {
 				</CardBody>
 			</Card>
 
-			<div className="flex justify-center">
-				<Pagination
-					total={totalPages}
-					initialPage={1}
-					page={page}
-					onChange={(page) => setPage(page)}
-				/>
-			</div>
+                        <div className="flex justify-center">
+                                <Pagination
+                                        total={totalPages}
+                                        initialPage={1}
+                                        page={page}
+                                        onChange={(page) => setPage(page)}
+                                        aria-label="صفحه‌بندی گروه‌ها"
+                                />
+                        </div>
 
 			{error && (
 				<div className="fixed bottom-6 right-6 bg-danger-50 dark:bg-danger-900/30 text-danger-600 dark:text-danger-400 p-4 rounded-xl shadow-lg flex items-center gap-3">

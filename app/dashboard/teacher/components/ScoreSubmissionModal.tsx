@@ -107,19 +107,21 @@ export function ScoreSubmissionModal({
 							<div className="space-y-4">
 								{/* Search & Filters */}
 								<div className="flex gap-4">
-									<Input
-										placeholder="جستجوی دانشجو..."
-										value={searchQuery}
-										onChange={(e: { target: { value: SetStateAction<string>; }; }) => setSearchQuery(e.target.value)}
-										startContent={
-											<Search className="w-4 h-4 text-neutral-500" />
-										}
-										className="flex-1"
-									/>
-									<Select
-										selectedKeys={[selectedFilter]}
-										onChange={(e) => setSelectedFilter(e.target.value as any)}
-										className="w-48">
+                                                                        <Input
+                                                                                placeholder="جستجوی دانشجو..."
+                                                                                value={searchQuery}
+                                                                                onChange={(e: { target: { value: SetStateAction<string>; }; }) => setSearchQuery(e.target.value)}
+                                                                                startContent={
+                                                                                        <Search className="w-4 h-4 text-neutral-500" />
+                                                                                }
+                                                                                className="flex-1"
+                                                                                aria-label="جستجوی دانشجو در لیست نمرات"
+                                                                        />
+                                                                        <Select
+                                                                                selectedKeys={[selectedFilter]}
+                                                                                onChange={(e) => setSelectedFilter(e.target.value as any)}
+                                                                                className="w-48"
+                                                                                aria-label="فیلتر وضعیت نمره">
 										<SelectItem key="all" value="all">
 											همه دانشجویان
 										</SelectItem>
@@ -218,23 +220,24 @@ export function ScoreSubmissionModal({
 													)}
 												</TableCell>
 												<TableCell>
-													<Input
-														type="number"
-														min="0"
-														max="20"
-														step="0.25"
-														placeholder="0-20"
-														value={scores[student.id]?.toString() ?? ""}
-														onChange={(e: { target: { value: any; }; }) =>
-															handleScoreChange(student.id, e.target.value)
-														}
-														className="w-24"
-														endContent={
-															scores[student.id] !== undefined && (
-																<Check className="w-4 h-4 text-success" />
-															)
-														}
-													/>
+                                                                                                       <Input
+                                                                                                               type="number"
+                                                                                                               min="0"
+                                                                                                               max="20"
+                                                                                                               step="0.25"
+                                                                                                               placeholder="0-20"
+                                                                                                               value={scores[student.id]?.toString() ?? ""}
+                                                                                                               onChange={(e: { target: { value: any; }; }) =>
+                                                                                                                       handleScoreChange(student.id, e.target.value)
+                                                                                                               }
+                                                                                                               className="w-24"
+                                                                                                               endContent={
+                                                                                                                       scores[student.id] !== undefined && (
+                                                                                                                               <Check className="w-4 h-4 text-success" />
+                                                                                                                       )
+                                                                                                               }
+                                                                                                               aria-label={`نمره جدید برای ${student.firstName} ${student.lastName}`}
+                                                                                                       />
 												</TableCell>
 											</TableRow>
 										))}

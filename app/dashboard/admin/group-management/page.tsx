@@ -119,6 +119,7 @@ export default function GroupManagement() {
               }}
               startContent={<Search className="w-4 h-4 text-neutral-500" />}
               className="w-full sm:w-72"
+              aria-label="جستجو در گروه‌ها"
             />
           </div>
           <Table aria-label="لیست گروه‌ها">
@@ -162,6 +163,7 @@ export default function GroupManagement() {
           initialPage={1}
           page={page}
           onChange={(p) => setPage(p)}
+          aria-label="صفحه‌بندی گروه‌ها"
         />
       </div>
       {error && (

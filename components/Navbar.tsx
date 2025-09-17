@@ -131,6 +131,7 @@ export default function AppNavbar() {
         <NavbarMenuToggle
           className="sm:hidden"
           icon={<Menu className="w-5 h-5" />}
+          aria-label="تغییر وضعیت منوی ناوبری"
         />
       </NavbarContent>
 

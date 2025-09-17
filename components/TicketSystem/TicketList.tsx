@@ -101,16 +101,17 @@ export function TicketList({
 				</CardBody>
 			</Card>
 
-			{showPagination && (
-				<div className="flex justify-center">
-					<Pagination
-						total={totalPages}
-						initialPage={1}
-						page={page}
-						onChange={(page) => setPage(page)}
-					/>
-				</div>
-			)}
+                        {showPagination && (
+                                <div className="flex justify-center">
+                                        <Pagination
+                                                total={totalPages}
+                                                initialPage={1}
+                                                page={page}
+                                                onChange={(page) => setPage(page)}
+                                                aria-label="صفحه‌بندی تیکت‌ها"
+                                        />
+                                </div>
+                        )}
 
 			{error && <p className="text-red-500">{error}</p>}
 		</div>

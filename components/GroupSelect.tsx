@@ -72,6 +72,7 @@ export function GroupSelect({ value, onChange, label, placeholder }: GroupSelect
           color="primary"
           variant="flat"
           onPress={() => setIsModalOpen(true)}
+          aria-label="افزودن گروه جدید"
         >
           <Plus className="w-4 h-4" />
         </Button>
