@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type AxiosResponse } from "axios";
 import { CourseAssignment, Group, PaginatedResponse } from "./types/common";
 import {
 	BulkScoreResponse,
@@ -18,6 +18,114 @@ const axiosInstance = axios.create({
                 "Content-Type": "application/json",
         },
 });
+
+const normalizePaginatedResponse = <T>(
+        response: AxiosResponse<any>,
+        {
+                page,
+                limit,
+        }: {
+                page: number;
+                limit: number;
+        }
+): AxiosResponse<PaginatedResponse<T>> => {
+        const rawData = response.data;
+
+        if (Array.isArray(rawData)) {
+                const totalItems = rawData.length;
+                const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : totalItems || 10;
+                const startIndex = Math.max((page - 1) * safeLimit, 0);
+                const paginatedItems =
+                        safeLimit > 0
+                                ? (rawData as T[]).slice(startIndex, startIndex + safeLimit)
+                                : (rawData as T[]);
+
+                const meta: PaginatedResponse<T>["meta"] = {
+                        totalItems,
+                        itemCount: paginatedItems.length,
+                        itemsPerPage: safeLimit,
+                        totalPages:
+                                totalItems === 0
+                                        ? 1
+                                        : Math.max(1, Math.ceil(totalItems / Math.max(safeLimit, 1))),
+                        currentPage: page || 1,
+                };
+
+                return {
+                        ...response,
+                        data: {
+                                items: paginatedItems,
+                                meta,
+                        },
+                };
+        }
+
+        const extractedItems = Array.isArray(rawData?.items)
+                ? (rawData.items as T[])
+                : Array.isArray(rawData)
+                ? (rawData as T[])
+                : Array.isArray(rawData?.data)
+                ? (rawData.data as T[])
+                : [];
+
+        const fallbackLimit = Number.isFinite(limit) && limit > 0 ? limit : extractedItems.length || 10;
+        const metaSource = rawData?.meta ?? {};
+
+        const totalItems =
+                typeof metaSource.totalItems === "number" && metaSource.totalItems >= 0
+                        ? metaSource.totalItems
+                        : typeof rawData?.totalItems === "number"
+                        ? rawData.totalItems
+                        : extractedItems.length;
+
+        const itemCount =
+                typeof metaSource.itemCount === "number" && metaSource.itemCount >= 0
+                        ? metaSource.itemCount
+                        : typeof rawData?.itemCount === "number"
+                        ? rawData.itemCount
+                        : extractedItems.length;
+
+        const itemsPerPage =
+                typeof metaSource.itemsPerPage === "number" && metaSource.itemsPerPage > 0
+                        ? metaSource.itemsPerPage
+                        : typeof rawData?.itemsPerPage === "number" && rawData.itemsPerPage > 0
+                        ? rawData.itemsPerPage
+                        : Math.max(fallbackLimit, 1);
+
+        const totalPages =
+                typeof metaSource.totalPages === "number" && metaSource.totalPages > 0
+                        ? metaSource.totalPages
+                        : typeof rawData?.totalPages === "number" && rawData.totalPages > 0
+                        ? rawData.totalPages
+                        : Math.max(
+                                  1,
+                                  Math.ceil(
+                                          (totalItems || extractedItems.length || 0) /
+                                                  Math.max(itemsPerPage, 1)
+                                  )
+                          );
+
+        const currentPage =
+                typeof metaSource.currentPage === "number" && metaSource.currentPage > 0
+                        ? metaSource.currentPage
+                        : typeof rawData?.currentPage === "number" && rawData.currentPage > 0
+                        ? rawData.currentPage
+                        : page || 1;
+
+        return {
+                ...response,
+                data: {
+                        items: extractedItems,
+                        meta: {
+                                totalItems,
+                                itemCount,
+                                itemsPerPage,
+                                totalPages,
+                                currentPage,
+                        },
+                },
+        };
+};
 
 // Add interceptors
 axiosInstance.interceptors.request.use(
@@ -90,10 +198,13 @@ interface GroupStudentStatus {
 }
 
 export const courseGroupsApi = {
-        getAllGroups: (page = 1, limit = 10, search?: string) =>
-                axiosInstance.get<PaginatedResponse<GroupResponse>>("/course-groups", {
+        getAllGroups: async (page = 1, limit = 10, search?: string) => {
+                const response = await axiosInstance.get("/course-groups", {
                         params: { page, limit, search },
-                }),
+                });
+
+                return normalizePaginatedResponse<GroupResponse>(response, { page, limit });
+        },
 
         getGroupById: (id: number) =>
                 axiosInstance.get<GroupResponse>(`/course-groups/${id}`),
@@ -172,11 +283,14 @@ export const courseGroupsApi = {
 };
 
 export const groupsApi = {
-	// Group Management
-	getAllGroups: (page = 1, limit = 10, search?: string) =>
-		axiosInstance.get<PaginatedResponse<Group>>("/groups", {
-			params: { page, limit, search },
-		}),
+        // Group Management
+        getAllGroups: async (page = 1, limit = 10, search?: string) => {
+                const response = await axiosInstance.get("/groups", {
+                        params: { page, limit, search },
+                });
+
+                return normalizePaginatedResponse<Group>(response, { page, limit });
+        },
 
         createGroup: (data: { name: string }) =>
                 axiosInstance.post<Group>("/groups", data),

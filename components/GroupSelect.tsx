@@ -29,8 +29,13 @@ export function GroupSelect({ value, onChange, label, placeholder }: GroupSelect
   const [newGroupName, setNewGroupName] = useState("");
 
   const loadGroups = async () => {
-    const res = await groupsApi.getAllGroups(1, 100);
-    setGroups(res.data.items || []);
+    try {
+      const res = await groupsApi.getAllGroups(1, 100);
+      setGroups(res.data?.items ?? []);
+    } catch (error) {
+      console.error("Failed to load groups", error);
+      setGroups([]);
+    }
   };
 
   useEffect(() => {

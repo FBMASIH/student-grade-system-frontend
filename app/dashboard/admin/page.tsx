@@ -12,7 +12,7 @@ import {
 	Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { QuickStats } from "../../../components/QuickStats";
 import { UsersManagement } from "../../../components/UsersManagement";
 import CourseGroupsManagement from "./course-groups/page";
@@ -22,37 +22,47 @@ import AdminScoreManagement from "./scores/page";
 import GroupManagement from "./group-management/page";
 
 export default function AdminDashboard() {
-	const { token } = useAuthStore();
-	const router = useRouter();
-	const [selectedTab, setSelectedTab] = useState("users");
-	const [initialData, setInitialData] = useState<{ users: any[] }>({
-		users: [],
-	});
+        const token = useAuthStore((state) => state.token);
+        const hydrated = useAuthStore((state) => state.hydrated);
+        const router = useRouter();
+        const [selectedTab, setSelectedTab] = useState("users");
+        const [initialData, setInitialData] = useState<{ users: any[] }>({
+                users: [],
+        });
 	const [loading, setLoading] = useState(true);
 
-	const loadData = async () => {
-		if (!token) {
-			router.push("/login");
-			return;
-		}
+        const loadData = useCallback(async () => {
+                if (!token) {
+                        return;
+                }
 
-		try {
-			setLoading(true);
-			const response = await api.getUsers(1, 1000); // Get all users initially
-			if (response.data && response.data.items) {
-				setInitialData({ users: response.data.items });
-			}
-		} catch (error) {
-			console.error("Failed to load users:", error);
-		} finally {
-			setLoading(false);
-		}
-	};
+                try {
+                        setLoading(true);
+                        const response = await api.getUsers(1, 1000); // Get all users initially
+                        if (response.data && response.data.items) {
+                                setInitialData({ users: response.data.items });
+                        }
+                } catch (error) {
+                        console.error("Failed to load users:", error);
+                } finally {
+                        setLoading(false);
+                }
+        }, [token]);
 
 	// Only load initial data once
-	useEffect(() => {
-		loadData();
-	}, [token]);
+        useEffect(() => {
+                if (!hydrated) {
+                        return;
+                }
+
+                if (!token) {
+                        setLoading(false);
+                        router.push("/login");
+                        return;
+                }
+
+                loadData();
+        }, [token, hydrated, router, loadData]);
 
 	if (loading) {
 		return (

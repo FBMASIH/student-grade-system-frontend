@@ -5,7 +5,7 @@ import { useAuthStore } from "@/lib/store";
 import { Button, Card, CardBody, Chip } from "@nextui-org/react";
 import { AlertCircle, BookOpen, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ScoreSubmissionModal } from "./components/ScoreSubmissionModal";
 import { ScoreUploadModal } from "./components/ScoreUploadModal";
@@ -30,7 +30,9 @@ interface Student {
 }
 
 export default function TeacherDashboard() {
-  const { token, user } = useAuthStore();
+  const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
+  const hydrated = useAuthStore((state) => state.hydrated);
   const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [error, setError] = useState("");
@@ -44,15 +46,7 @@ export default function TeacherDashboard() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadGroupId, setUploadGroupId] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-    loadCourses();
-  }, [token, user]);
-
-  const loadCourses = async () => {
+  const loadCourses = useCallback(async () => {
     try {
       if (!user) return;
       const res = await api.getProfessorCourses(user.id);
@@ -66,7 +60,24 @@ export default function TeacherDashboard() {
       setError(err.message);
       toast.error("خطا در دریافت دروس");
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    if (!user) {
+      return;
+    }
+
+    loadCourses();
+  }, [token, user, hydrated, router, loadCourses]);
 
   const openScoreModal = async (course: Course, group: Group) => {
     try {

@@ -133,14 +133,14 @@ export default function AcademicGroupsManagement() {
 		fetchCoursesAndProfessors();
 	}, []);
 
-	const fetchGroups = async () => {
-		try {
-			const { data } = await groupsApi.getAllGroups();
-			setGroups(data.items);
-		} catch (err: any) {
-			toast.error("Error fetching groups");
-		}
-	};
+        const fetchGroups = async () => {
+                try {
+                        const { data } = await groupsApi.getAllGroups();
+                        setGroups(data?.items ?? []);
+                } catch (err: any) {
+                        toast.error("Error fetching groups");
+                }
+        };
 
 	const fetchCoursesAndProfessors = async () => {
 		try {

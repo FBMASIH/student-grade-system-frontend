@@ -21,7 +21,7 @@ import {
 	useDisclosure,
 } from "@nextui-org/react";
 import { AlertCircle, Book, Plus, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface Group {
 	id: number;
@@ -59,34 +59,40 @@ export default function GroupsManagement() {
 	const { isOpen, onOpen, onClose } = useDisclosure();
 	const [isLoading, setIsLoading] = useState(true);
 
-	useEffect(() => {
-		fetchGroups(page);
-	}, [page]);
+        const fetchGroups = useCallback(
+                async (currentPage: number, query = searchQuery) => {
+                        try {
+                                setIsLoading(true);
+                                const response = await courseGroupsApi.getAllGroups(
+                                        currentPage,
+                                        10,
+                                        query
+                                );
+                                const items = response.data?.items ?? [];
+                                setGroups(items);
+                                const fallbackTotalPages =
+                                        items.length > 0 ? Math.max(1, Math.ceil(items.length / 10)) : 1;
+                                setTotalPages(response.data?.meta?.totalPages ?? fallbackTotalPages);
+                        } catch (err: any) {
+                                console.error("Error fetching groups:", err);
+                                setError(err.message);
+                                setGroups([]);
+                        } finally {
+                                setIsLoading(false);
+                        }
+                },
+                [searchQuery]
+        );
 
-	const fetchGroups = async (currentPage: number) => {
-		try {
-			setIsLoading(true);
-			const response = await courseGroupsApi.getAllGroups(
-				currentPage,
-				10,
-				searchQuery
-			);
-			setGroups(response.data.items);
-			setTotalPages(response.data.meta.totalPages);
-		} catch (err: any) {
-			console.error("Error fetching groups:", err);
-			setError(err.message);
-			setGroups([]);
-		} finally {
-			setIsLoading(false);
-		}
-	};
+        useEffect(() => {
+                fetchGroups(page);
+        }, [page, fetchGroups]);
 
-	const handleSearch = (value: string) => {
-		setSearchQuery(value);
-		setPage(1);
-		fetchGroups(1);
-	};
+        const handleSearch = (value: string) => {
+                setSearchQuery(value);
+                setPage(1);
+                fetchGroups(1, value);
+        };
 
 	const handleCreateGroup = async () => {
 		try {
