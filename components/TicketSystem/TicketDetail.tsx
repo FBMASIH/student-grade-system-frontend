@@ -4,7 +4,7 @@ import { formatDate } from "@/lib/utils/formatDate";
 import { Avatar, Button, Card, CardBody, Textarea } from "@nextui-org/react";
 import { motion } from "framer-motion";
 import { AlertCircle, Clock, MessageSquare, Send } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface Ticket {
 	id: number;
@@ -44,65 +44,56 @@ export function TicketDetail({ ticketId }: { ticketId: number }) {
 	const [newComment, setNewComment] = useState("");
 	const [error, setError] = useState("");
 
-	useEffect(() => {
-		console.log("TicketDetail mounted with ticketId:", ticketId);
-		fetchTicket();
-		fetchComments();
-	}, [ticketId]);
+        const fetchTicket = useCallback(async () => {
+                try {
+                        const response = await api.getTicketById(ticketId);
+                        setTicket(response.data);
+                } catch (err: any) {
+                        setError(err.message || "Failed to fetch ticket");
+                }
+        }, [ticketId]);
 
-	const fetchTicket = async () => {
-		try {
-			console.log("Fetching ticket data...");
-			const response = await api.getTicketById(ticketId);
-			console.log("Ticket response:", response);
-			setTicket(response.data);
-		} catch (err: any) {
-			console.error("Error fetching ticket:", err);
-			setError(err.message || "Failed to fetch ticket");
-		}
-	};
+        const fetchComments = useCallback(async () => {
+                try {
+                        const response = await api.getCommentsForTicket(ticketId);
+                        if (!response.data) {
+                                setComments([]);
+                                return;
+                        }
+                        setComments(response.data);
+                } catch (err: any) {
+                        setError(err.message || "Failed to fetch comments");
+                        setComments([]);
+                }
+        }, [ticketId]);
 
-	const fetchComments = async () => {
-		try {
-			console.log("Fetching comments...");
-			const response = await api.getCommentsForTicket(ticketId);
-			console.log("Comments response:", response);
-			if (!response.data) {
-				console.warn("No comments array in response");
-				setComments([]);
-				return;
-			}
-			setComments(response.data);
-		} catch (err: any) {
-			console.error("Error fetching comments:", err);
-			setError(err.message || "Failed to fetch comments");
-			setComments([]);
-		}
-	};
+        useEffect(() => {
+                void fetchTicket();
+                void fetchComments();
+        }, [fetchComments, fetchTicket]);
 
 	const handleAddComment = async () => {
-		try {
-			await api.addCommentToTicket(ticketId, {
-				text: newComment,
-				createdBy: "currentUserId", // Replace with actual user ID
-			});
-			setNewComment("");
-			fetchComments();
-		} catch (err: any) {
-			setError(err.message);
-		}
-	};
+                try {
+                        await api.addCommentToTicket(ticketId, {
+                                text: newComment,
+                                createdBy: "currentUserId", // Replace with actual user ID
+                        });
+                        setNewComment("");
+                        await fetchComments();
+                } catch (err: any) {
+                        setError(err.message);
+                }
+        };
 
 	// Sort comments to show newest at bottom
 	const sortedComments = [...comments].sort(
 		(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
 	);
 
-	if (!ticket) {
-		console.log("No ticket data yet, showing loading...");
-		return (
-			<div className="flex items-center justify-center p-8">
-				<div className="text-center space-y-4">
+        if (!ticket) {
+                return (
+                        <div className="flex items-center justify-center p-8">
+                                <div className="text-center space-y-4">
 					<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto"></div>
 					<p>Loading ticket details...</p>
 				</div>
@@ -217,13 +208,14 @@ export function TicketDetail({ ticketId }: { ticketId: number }) {
 									}
 								/>
 								<div className="flex-1">
-									<Textarea
-										placeholder="پاسخ خود را بنویسید..."
-										value={newComment}
-										onChange={(e) => setNewComment(e.target.value)}
-										minRows={2}
-										className="mb-3 transition-all focus:scale-[1.01]"
-									/>
+                                                                        <Textarea
+                                                                                placeholder="پاسخ خود را بنویسید..."
+                                                                                value={newComment}
+                                                                                onChange={(e) => setNewComment(e.target.value)}
+                                                                                minRows={2}
+                                                                                className="mb-3 transition-all focus:scale-[1.01]"
+                                                                                aria-label="متن پاسخ جدید"
+                                                                        />
 									<div className="flex justify-end">
 										<Button
 											color="primary"

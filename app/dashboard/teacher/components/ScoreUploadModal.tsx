@@ -60,6 +60,7 @@ export function ScoreUploadModal({ isOpen, onClose, groupId }: Props) {
                 accept=".xlsx,.xls"
                 onChange={handleFileChange}
                 startContent={<Upload className="w-4 h-4 text-primary" />}
+                aria-label="انتخاب فایل نمرات"
               />
             </ModalBody>
             <ModalFooter>

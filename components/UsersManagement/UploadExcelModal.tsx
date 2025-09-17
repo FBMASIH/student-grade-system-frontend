@@ -217,6 +217,7 @@ export function UploadExcelModal({
                                                                                         classNames={{
                                                                                                 input: "cursor-pointer",
                                                                                         }}
+                                                                                        aria-label="انتخاب فایل اکسل کاربران"
                                                                                 />
                                                                         </CardBody>
                                                                 </Card>

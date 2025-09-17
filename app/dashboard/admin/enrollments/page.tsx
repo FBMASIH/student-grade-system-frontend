@@ -20,7 +20,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { faIR } from "date-fns/locale";
 import { AlertCircle, GraduationCap, Search, UserPlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface Enrollment {
 	id: number;
@@ -52,45 +52,44 @@ export default function EnrollmentsManagement() {
 	const [selectedGroup, setSelectedGroup] = useState("");
 	const [error, setError] = useState("");
 
-	useEffect(() => {
-		fetchEnrollments(page);
-	}, [page]);
+        const fetchEnrollments = useCallback(async (currentPage: number, query: string) => {
+                try {
+                        setIsLoading(true);
+                        const response = await api.getAllEnrollments(
+                                currentPage,
+                                10,
+                                query
+                        );
+                        const paginatedData = response.data as PaginatedResponse;
 
-	const fetchEnrollments = async (currentPage: number) => {
-		try {
-			setIsLoading(true);
-			const response = await api.getAllEnrollments(
-				currentPage,
-				10,
-				searchQuery
-			);
-			const paginatedData = response.data as PaginatedResponse;
+                        setEnrollments(paginatedData.items);
+                        setTotalPages(paginatedData.meta.totalPages);
+                } catch (err: any) {
+                        setError(err.message);
+                        setEnrollments([]);
+                } finally {
+                        setIsLoading(false);
+                }
+        }, []);
 
-			setEnrollments(paginatedData.items);
-			setTotalPages(paginatedData.meta.totalPages);
-		} catch (err: any) {
-			setError(err.message);
-			setEnrollments([]);
-		} finally {
-			setIsLoading(false);
-		}
-	};
+        useEffect(() => {
+                void fetchEnrollments(page, searchQuery);
+        }, [fetchEnrollments, page, searchQuery]);
 
-	const handleSearch = (value: string) => {
-		setSearchQuery(value);
-		setPage(1);
-		fetchEnrollments(1);
-	};
+        const handleSearch = (value: string) => {
+                setSearchQuery(value);
+                setPage(1);
+        };
 
 	const handleCreateEnrollment = async () => {
 		if (!selectedStudent || !selectedGroup) return;
 
-		try {
-			await api.createEnrollment(
-				parseInt(selectedStudent),
-				parseInt(selectedGroup)
-			);
-			await fetchEnrollments(page); // Refresh data after creating
+                try {
+                        await api.createEnrollment(
+                                parseInt(selectedStudent),
+                                parseInt(selectedGroup)
+                        );
+                        await fetchEnrollments(page, searchQuery); // Refresh data after creating
 			setSelectedStudent("");
 			setSelectedGroup("");
 		} catch (err: any) {
@@ -101,12 +100,12 @@ export default function EnrollmentsManagement() {
 	const handleDeleteEnrollment = async (id: number) => {
 		if (!confirm("آیا از حذف این ثبت‌نام اطمینان دارید؟")) return;
 
-		try {
-			await api.deleteEnrollment(id);
-			await fetchEnrollments(page);
-		} catch (err: any) {
-			setError(err.message);
-		}
+                try {
+                        await api.deleteEnrollment(id);
+                        await fetchEnrollments(page, searchQuery);
+                } catch (err: any) {
+                        setError(err.message);
+                }
 	};
 
 	return (
@@ -165,13 +164,14 @@ export default function EnrollmentsManagement() {
 					) : (
 						<>
 							<div className="p-4 border-b border-neutral-200/50 dark:border-neutral-800/50">
-								<Input
-									placeholder="جستجو در ثبت‌نام‌ها..."
-									value={searchQuery}
-									onChange={(e) => handleSearch(e.target.value)}
-									startContent={<Search className="w-4 h-4 text-neutral-500" />}
-									className="w-full sm:w-72"
-								/>
+                                                                <Input
+                                                                        placeholder="جستجو در ثبت‌نام‌ها..."
+                                                                        value={searchQuery}
+                                                                        onChange={(e) => handleSearch(e.target.value)}
+                                                                        startContent={<Search className="w-4 h-4 text-neutral-500" />}
+                                                                        className="w-full sm:w-72"
+                                                                        aria-label="جستجو در ثبت‌نام‌ها"
+                                                                />
 							</div>
 
 							<Table aria-label="لیست ثبت‌نام‌ها">
@@ -242,14 +242,15 @@ export default function EnrollmentsManagement() {
 				</CardBody>
 			</Card>
 
-			<div className="flex justify-center">
-				<Pagination
-					total={totalPages}
-					initialPage={1}
-					page={page}
-					onChange={(page) => setPage(page)}
-				/>
-			</div>
+                        <div className="flex justify-center">
+                                <Pagination
+                                        total={totalPages}
+                                        initialPage={1}
+                                        page={page}
+                                        onChange={(page) => setPage(page)}
+                                        aria-label="صفحه‌بندی ثبت‌نام‌ها"
+                                />
+                        </div>
 
 			{error && (
 				<div className="fixed bottom-6 right-6 bg-danger-50 dark:bg-danger-900/30 text-danger-600 dark:text-danger-400 p-4 rounded-xl shadow-lg flex items-center gap-3">

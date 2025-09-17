@@ -620,23 +620,25 @@ export default function AcademicGroupsManagement() {
 
 								{/* Student List Section */}
 								<div className="flex items-center justify-between mb-4">
-									<Input
-										placeholder="جستجوی دانشجو..."
-										value={searchQuery}
-										onChange={(e) => {
-											setSearchQuery(e.target.value);
-											handleSearchStudents(e.target.value);
-										}}
-										className="w-1/3"
-									/>
+                                                                        <Input
+                                                                                placeholder="جستجوی دانشجو..."
+                                                                                value={searchQuery}
+                                                                                onChange={(e) => {
+                                                                                        setSearchQuery(e.target.value);
+                                                                                        handleSearchStudents(e.target.value);
+                                                                                }}
+                                                                                className="w-1/3"
+                                                                                aria-label="جستجوی دانشجو"
+                                                                        />
 									<div>
-										<input
-											type="file"
-											id="excel-upload"
-											accept=".xlsx,.xls"
-											onChange={(e) => handleExcelImport(e.target.files?.[0]!)}
-											className="hidden"
-										/>
+                                                                                <input
+                                                                                        type="file"
+                                                                                        id="excel-upload"
+                                                                                        accept=".xlsx,.xls"
+                                                                                        onChange={(e) => handleExcelImport(e.target.files?.[0]!)}
+                                                                                        className="hidden"
+                                                                                        aria-label="بارگذاری فایل اکسل دانشجویان"
+                                                                        />
 										<Button
 											color="primary"
 											variant="flat"
@@ -660,21 +662,22 @@ export default function AcademicGroupsManagement() {
 											onSelectionChange={handleSelectionChange}
 											bottomContent={
 												<div className="flex w-full justify-center">
-													<Pagination
-														isCompact
-														showControls
-														showShadow
-														color="primary"
-														page={page}
-														total={totalPages}
-														onChange={(page) => {
-															setPage(page);
-															fetchStudentsForAssignment(
-																selectedAssignment!,
-																page
-															);
-														}}
-													/>
+                                                                                                       <Pagination
+                                                                                                               isCompact
+                                                                                                               showControls
+                                                                                                               showShadow
+                                                                                                               color="primary"
+                                                                                                               page={page}
+                                                                                                               total={totalPages}
+                                                                                                               onChange={(page) => {
+                                                                                                                       setPage(page);
+                                                                                                                       fetchStudentsForAssignment(
+                                                                                                                               selectedAssignment!,
+                                                                                                                               page
+                                                                                                                       );
+                                                                                                               }}
+                                                                                                               aria-label="صفحه‌بندی دانشجویان"
+                                                                                                       />
 												</div>
 											}>
 											<TableHeader>

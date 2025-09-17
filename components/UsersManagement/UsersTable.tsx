@@ -415,6 +415,7 @@ export function UsersTable({
                                                classNames={{
                                                        inputWrapper: styles.search,
                                                }}
+                                               aria-label="جستجوی کاربر"
                                        />
                                         <Select
                                                 placeholder="فیلتر بر اساس نقش"
@@ -425,7 +426,8 @@ export function UsersTable({
                                                         )
                                                 }
                                                 className="w-48"
-                                                size="sm">
+                                                size="sm"
+                                                aria-label="فیلتر نقش کاربر">
                                                 <SelectItem key="" value="">
                                                         همه
                                                 </SelectItem>
@@ -465,7 +467,11 @@ export function UsersTable({
 				}}>
                                 <TableHeader>
                                         <TableColumn>
-                                                <Checkbox isSelected={selectAll} onValueChange={handleSelectAll} />
+                                                <Checkbox
+                                                        isSelected={selectAll}
+                                                        onValueChange={handleSelectAll}
+                                                        aria-label="انتخاب همه کاربران"
+                                                />
                                         </TableColumn>
                                         <TableColumn>نام و نام خانوادگی</TableColumn>
                                         <TableColumn>نام کاربری</TableColumn>
@@ -487,6 +493,7 @@ export function UsersTable({
                                                                 <Checkbox
                                                                         isSelected={selectedUsers.includes(item.key)}
                                                                         onValueChange={() => handleUserSelection(item.key)}
+                                                                        aria-label={`انتخاب ${item.username}`}
                                                                 />
                                                         </TableCell>
                                                         <TableCell>{item.fullName}</TableCell>
@@ -498,14 +505,15 @@ export function UsersTable({
 				</TableBody>
 			</Table>
 
-			{totalPages > 1 && (
-				<Pagination
-					total={totalPages}
-					page={filters.page}
-					onChange={handlePageChange}
-					className="flex justify-center"
-				/>
-			)}
+                        {totalPages > 1 && (
+                                <Pagination
+                                        total={totalPages}
+                                        page={filters.page}
+                                        onChange={handlePageChange}
+                                        className="flex justify-center"
+                                        aria-label="صفحه‌بندی کاربران"
+                                />
+                        )}
 
 			<Modal
                                 isOpen={isUploadExcelOpen}
@@ -531,13 +539,14 @@ export function UsersTable({
 								<div className="space-y-4">
 									{!uploadResponse && (
 										<div className="flex flex-col gap-4">
-											<Input
-												type="file"
-												accept=".xlsx,.xls,.csv"
-												onChange={handleFileUpload}
-												disabled={isUploading}
-												className="mb-4"
-											/>
+                                                                                        <Input
+                                                                                                type="file"
+                                                                                                accept=".xlsx,.xls,.csv"
+                                                                                                onChange={handleFileUpload}
+                                                                                                disabled={isUploading}
+                                                                                                className="mb-4"
+                                                                                                aria-label="آپلود فایل اکسل کاربران"
+                                                                                        />
 											{isUploading && (
 												<Progress
 													value={uploadProgress}

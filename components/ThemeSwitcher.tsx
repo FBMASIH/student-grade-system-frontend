@@ -19,6 +19,7 @@ const ThemeSwitcher = () => {
       isIconOnly
       variant="light"
       onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+      aria-label={theme === "light" ? "تغییر به حالت تیره" : "تغییر به حالت روشن"}
     >
       {theme === "light" ? <MoonIcon /> : <SunIcon />}
     </Button>

@@ -111,13 +111,14 @@ export default function UserManagement() {
 					) : (
 						<>
 							<div className="p-4 border-b border-neutral-200/50 dark:border-neutral-800/50">
-								<Input
-									placeholder="جستجو در کاربران..."
-									value={searchQuery}
-									onChange={(e) => handleSearch(e.target.value)}
-									startContent={<Search className="w-4 h-4 text-neutral-500" />}
-									className="w-full sm:w-72"
-								/>
+                                                                <Input
+                                                                        placeholder="جستجو در کاربران..."
+                                                                        value={searchQuery}
+                                                                        onChange={(e) => handleSearch(e.target.value)}
+                                                                        startContent={<Search className="w-4 h-4 text-neutral-500" />}
+                                                                        className="w-full sm:w-72"
+                                                                        aria-label="جستجو در کاربران"
+                                                                />
 							</div>
 
                                                         <Table aria-label="لیست کاربران">
@@ -151,14 +152,15 @@ export default function UserManagement() {
                                 </CardBody>
                         </Card>
 
-			<div className="flex justify-center">
-				<Pagination
-					total={totalPages}
-					initialPage={1}
-					page={page}
-					onChange={(page) => setPage(page)}
-				/>
-			</div>
+                        <div className="flex justify-center">
+                                <Pagination
+                                        total={totalPages}
+                                        initialPage={1}
+                                        page={page}
+                                        onChange={(page) => setPage(page)}
+                                        aria-label="صفحه‌بندی کاربران"
+                                />
+                        </div>
 
 			{error && (
 				<div className="fixed bottom-6 right-6 bg-danger-50 dark:bg-danger-900/30 text-danger-600 dark:text-danger-400 p-4 rounded-xl shadow-lg flex items-center gap-3">
