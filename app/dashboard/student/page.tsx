@@ -35,7 +35,7 @@ import {
 	School,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface Enrollment {
@@ -107,7 +107,9 @@ interface Objection {
 }
 
 export default function StudentDashboard() {
-	const { token, user } = useAuthStore(); // Get user from auth store
+        const token = useAuthStore((state) => state.token); // Get user from auth store
+        const user = useAuthStore((state) => state.user);
+        const hydrated = useAuthStore((state) => state.hydrated);
 	const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
 	const [courses, setCourses] = useState<CourseWithGroups[]>([]);
 	const [error, setError] = useState("");
@@ -119,53 +121,53 @@ export default function StudentDashboard() {
 	const [objectionReason, setObjectionReason] = useState("");
 	const [isSubmittingObjection, setIsSubmittingObjection] = useState(false);
 	const { isOpen, onOpen, onClose } = useDisclosure();
-	const router = useRouter();
-	const [mounted, setMounted] = useState(false);
-	const [objections, setObjections] = useState<StudentObjection[]>([]);
+        const router = useRouter();
+        const [mounted, setMounted] = useState(false);
+        const [objections, setObjections] = useState<StudentObjection[]>([]);
 
-	// Add mounting check
-	useEffect(() => {
-		setMounted(true);
-	}, []);
+        const loadStudentData = useCallback(async (studentId: number) => {
+                try {
+                        const [enrollmentsRes, coursesRes, objectionsRes] = await Promise.all([
+                                api.getStudentEnrollments(studentId),
+                                api.getStudentCourses(studentId),
+                                api.getStudentObjections(studentId),
+                        ]);
 
-	useEffect(() => {
-		if (!mounted) return;
+                        setEnrollments(enrollmentsRes.data.enrollments); // Set enrollments correctly
 
-		if (!token || !user?.id) {
-			router.push("/login");
-			return;
-		}
-		loadStudentData(user.id);
-	}, [token, user, router, mounted]);
+                        setCourses(coursesRes.data);
+                        setObjections(objectionsRes.data || []); // Set as direct array
+                } catch (err: any) {
+                        if (err.response && err.response.status === 404) {
+                                setEnrollments([]);
+                                setCourses([]);
+                                setObjections([]); // Reset to empty array on error
+                        } else {
+                                setError(err.message);
+                                toast.error("خطا در دریافت اطلاعات دروس");
+                        }
+                }
+        }, []);
+
+        // Add mounting check
+        useEffect(() => {
+                setMounted(true);
+        }, []);
+
+        useEffect(() => {
+                if (!mounted || !hydrated) return;
+
+                if (!token || !user?.id) {
+                        router.push("/login");
+                        return;
+                }
+                loadStudentData(user.id);
+        }, [token, user, router, mounted, hydrated, loadStudentData]);
 
 	// Don't render anything until mounted
 	if (!mounted) {
 		return null;
 	}
-
-	const loadStudentData = async (studentId: number) => {
-		try {
-			const [enrollmentsRes, coursesRes, objectionsRes] = await Promise.all([
-				api.getStudentEnrollments(studentId),
-				api.getStudentCourses(studentId),
-				api.getStudentObjections(studentId),
-			]);
-
-			setEnrollments(enrollmentsRes.data.enrollments); // Set enrollments correctly
-
-			setCourses(coursesRes.data);
-			setObjections(objectionsRes.data || []); // Set as direct array
-		} catch (err: any) {
-			if (err.response && err.response.status === 404) {
-				setEnrollments([]);
-				setCourses([]);
-				setObjections([]); // Reset to empty array on error
-			} else {
-				setError(err.message);
-				toast.error("خطا در دریافت اطلاعات دروس");
-			}
-		}
-	};
 
 	const handleSubmitObjection = async () => {
 		if (!selectedEnrollment || !objectionReason || !user?.id) return;

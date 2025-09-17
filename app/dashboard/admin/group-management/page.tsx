@@ -22,7 +22,7 @@ import {
   useDisclosure,
 } from "@nextui-org/react";
 import { AlertCircle, Plus, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export default function GroupManagement() {
   const [groups, setGroups] = useState<Group[]>([]);
@@ -34,21 +34,25 @@ export default function GroupManagement() {
   const [formName, setFormName] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
 
+  const fetchGroups = useCallback(
+    async (currentPage: number, query: string) => {
+      try {
+        const { data } = await groupsApi.getAllGroups(currentPage, 10, query);
+        const items = data?.items ?? [];
+        setGroups(items);
+        const fallbackTotalPages = items.length > 0 ? Math.max(1, Math.ceil(items.length / 10)) : 1;
+        setTotalPages(data?.meta?.totalPages ?? fallbackTotalPages);
+      } catch (err: any) {
+        setError(err.message);
+        setGroups([]);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     fetchGroups(page, search);
-  }, [page, search]);
-
-  const fetchGroups = async (currentPage: number, query: string) => {
-    try {
-      const res = await groupsApi.getAllGroups(currentPage, 10, query);
-      const data = res.data as PaginatedResponse<Group>;
-      setGroups(data.items);
-      setTotalPages(data.meta.totalPages);
-    } catch (err: any) {
-      setError(err.message);
-      setGroups([]);
-    }
-  };
+  }, [page, search, fetchGroups]);
 
   const openCreate = () => {
     setEditingId(null);
