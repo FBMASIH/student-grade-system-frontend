@@ -90,20 +90,37 @@ export default function AcademicGroupsManagement() {
 	const [uploadedUsers, setUploadedUsers] = useState<
 		ExcelUploadResponse["users"]
 	>([]);
-	const [uploadErrors, setUploadErrors] = useState<string[]>([]);
-	const [duplicateUsers, setDuplicateUsers] = useState<
-		ExcelUploadResponse["duplicates"]
-	>([]);
-	const [isUploading, setIsUploading] = useState(false);
-	const [showUploadResults, setShowUploadResults] = useState(false);
+        const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+        const [duplicateUsers, setDuplicateUsers] = useState<
+                ExcelUploadResponse["duplicates"]
+        >([]);
+        const [isUploading, setIsUploading] = useState(false);
+        const [showUploadResults, setShowUploadResults] = useState(false);
 
-	const [formData, setFormData] = useState({
-		groupName: "",
-		courseId: "",
-		professorId: "",
-		capacity: "30",
-		studentUsernames: "",
-	});
+        const [formData, setFormData] = useState({
+                groupName: "",
+                courseId: "",
+                professorId: "",
+                capacity: "30",
+                studentUsernames: "",
+        });
+
+        const formatUserName = (
+                user?: {
+                        firstName?: string | null;
+                        lastName?: string | null;
+                        username?: string | null;
+                } | null
+        ) => {
+                if (!user) return "نامشخص";
+                const parts = [user.firstName, user.lastName]
+                        .map((part) => part?.trim())
+                        .filter(Boolean) as string[];
+                if (parts.length > 0) {
+                        return parts.join(" ");
+                }
+                return user.username ?? "نامشخص";
+        };
 
 	const {
 		isOpen: isCreateGroupOpen,
@@ -680,23 +697,26 @@ export default function AcademicGroupsManagement() {
                                                                                                        />
 												</div>
 											}>
-											<TableHeader>
-												<TableColumn>نام کاربری</TableColumn>
-												<TableColumn>نام و نام خانوادگی</TableColumn>
-												<TableColumn>درس‌های ثبت‌نام شده</TableColumn>
-											</TableHeader>
+                                                                                        <TableHeader>
+                                                                                                <TableColumn>نام دانشجو</TableColumn>
+                                                                                                <TableColumn>درس‌های ثبت‌نام شده</TableColumn>
+                                                                                        </TableHeader>
 											<TableBody
 												loadingState={isLoading ? "loading" : "idle"}
 												emptyContent="دانشجویی یافت نشد">
 												{allStudents.map((student) => (
 													<TableRow key={student.id}>
-														<TableCell>{student.username}</TableCell>
-														<TableCell>
-															{student.firstName} {student.lastName}
-														</TableCell>
-														<TableCell>
-															<div className="flex gap-1 flex-wrap">
-																<Chip
+                                                                                                                <TableCell>
+                                                                                                                        <div className="flex flex-col">
+                                                                                                                                <span>{formatUserName(student)}</span>
+                                                                                                                                {student.username ? (
+                                                                                                                                        <span className="text-xs text-neutral-500">{student.username}</span>
+                                                                                                                                ) : null}
+                                                                                                                        </div>
+                                                                                                                </TableCell>
+                                                                                                                <TableCell>
+                                                                                                                        <div className="flex gap-1 flex-wrap">
+                                                                                                                               <Chip
 																	key={student.enrollmentId ?? student.id}
 																	size="sm"
 																	variant="flat"
@@ -891,11 +911,11 @@ export default function AcademicGroupsManagement() {
 									<TableCell>
 										{assignments
 											.filter((assignment) => assignment.groupId === group.id)
-											.map((assignment) => (
-												<div key={assignment.id}>
-													{assignment.professor.username}
-												</div>
-											))}
+                                                                                        .map((assignment) => (
+                                                                                                <div key={assignment.id}>
+                                                                                                        {formatUserName(assignment.professor)}
+                                                                                                </div>
+                                                                                        ))}
 									</TableCell>
 									<TableCell>
 										<Button
@@ -966,7 +986,7 @@ export default function AcademicGroupsManagement() {
 										{assignments.map((assignment) => (
 											<TableRow key={assignment.id}>
 												<TableCell>{assignment.course.name}</TableCell>
-												<TableCell>{assignment.professor.username}</TableCell>
+                                                                                            <TableCell>{formatUserName(assignment.professor)}</TableCell>
 												<TableCell>{assignment.capacity}</TableCell>
 												<TableCell>
 													<Button

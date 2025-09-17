@@ -80,14 +80,13 @@ interface CourseEnrollment {
 }
 
 interface FlattenedCourseData {
-	courseId: number;
-	courseName: string;
-	courseCode: string;
-	groupNumber: number;
-	groupId: number;
-	isActive: boolean;
-	enrollmentId: number;
-	score: number | null;
+        courseId: number;
+        courseName: string;
+        groupNumber: number;
+        groupId: number;
+        isActive: boolean;
+        enrollmentId: number;
+        score: number | null;
 }
 
 interface Objection {
@@ -205,13 +204,12 @@ export default function StudentDashboard() {
 	): FlattenedCourseData[] => {
 		return courses.flatMap((course) =>
 			course.groups.flatMap((group) =>
-				group.enrollments.map((enrollment) => ({
-					courseId: course.id,
-					courseName: course.name,
-					courseCode: course.code,
-					groupNumber: group.groupNumber,
-					groupId: group.id,
-					isActive: group.isActive,
+                                group.enrollments.map((enrollment) => ({
+                                        courseId: course.id,
+                                        courseName: course.name,
+                                        groupNumber: group.groupNumber,
+                                        groupId: group.id,
+                                        isActive: group.isActive,
 					enrollmentId: enrollment.id,
 					score: enrollment.score,
 				}))
@@ -281,24 +279,18 @@ export default function StudentDashboard() {
 					</div>
 
 					<Table removeWrapper aria-label="Course list">
-						<TableHeader>
-							<TableColumn>نام درس</TableColumn>
-							<TableColumn>کد درس</TableColumn>
-							<TableColumn>گروه</TableColumn>
-							<TableColumn>نمره</TableColumn>
-							<TableColumn>عملیات</TableColumn>
+                                        <TableHeader>
+                                                <TableColumn>نام درس</TableColumn>
+                                                <TableColumn>گروه</TableColumn>
+                                                <TableColumn>نمره</TableColumn>
+                                                <TableColumn>عملیات</TableColumn>
 						</TableHeader>
 						<TableBody emptyContent="هیچ درسی یافت نشد">
 							{flattenCourseData(courses).map((item) => (
 								<TableRow key={item.enrollmentId}>
-									<TableCell className="font-medium">
-										{item.courseName}
-									</TableCell>
-									<TableCell>
-										<Chip size="sm" variant="flat">
-											{item.courseCode}
-										</Chip>
-									</TableCell>
+                                                                        <TableCell className="font-medium">
+                                                                                {item.courseName}
+                                                                        </TableCell>
 									<TableCell>
 										<Chip
 											variant="dot"
