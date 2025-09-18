@@ -3,47 +3,40 @@
 import { api, courseGroupsApi } from "@/lib/api";
 import { PaginatedResponse } from "@/lib/types/common";
 import {
-	Button,
-	Card,
-	CardBody,
-	Checkbox,
-	Chip,
-	CircularProgress,
-	Input,
-	Modal,
-	ModalBody,
-	ModalContent,
-	ModalFooter,
-	ModalHeader,
-	Pagination,
-	Select,
-	SelectItem,
-	Table,
-	TableBody,
-	TableCell,
-	TableColumn,
-	TableHeader,
-	TableRow,
-	useDisclosure,
+        Button,
+        Card,
+        CardBody,
+        Checkbox,
+        Chip,
+        CircularProgress,
+        Divider,
+        Input,
+        Modal,
+        ModalBody,
+        ModalContent,
+        ModalFooter,
+        ModalHeader,
+        Pagination,
+        Select,
+        SelectItem,
+        Table,
+        TableBody,
+        TableCell,
+        TableColumn,
+        TableHeader,
+        TableRow,
+        Textarea,
+        useDisclosure,
 } from "@nextui-org/react";
 import {
-	AlertCircle,
-	Copy,
-	Plus,
-	Search,
-	Upload,
-	UserPlus,
+        AlertCircle,
+        Copy,
+        Plus,
+        Search,
+        Upload,
+        UserPlus,
 } from "lucide-react";
-import {
-        AwaitedReactNode,
-        JSXElementConstructor,
-        ReactElement,
-        ReactNode,
-        ReactPortal,
-        useCallback,
-        useEffect,
-        useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 interface CourseGroup {
@@ -60,25 +53,30 @@ interface CourseGroup {
         };
 }
 
-interface GroupStudentStatus {
+type EnrollmentStatus = "enrolled" | "can_enroll" | "cannot_enroll";
+
+interface GroupStudentBase {
         id: number;
         username: string;
         firstName?: string;
         lastName?: string;
         isEnrolled: boolean;
         canEnroll: boolean;
-        enrollmentStatus: "enrolled" | "can_enroll" | "cannot_enroll";
+}
+
+interface GroupStudentStatus extends GroupStudentBase {
+        enrollmentStatus: EnrollmentStatus;
 }
 
 interface GroupStatusResponse {
-	groupInfo: {
-		id: number;
-		groupNumber: number;
-		courseName: string;
-		capacity: number;
-		currentEnrollment: number;
-	};
-	students: GroupStudentStatus[];
+        groupInfo: {
+                id: number;
+                groupNumber: number;
+                courseName: string;
+                capacity: number;
+                currentEnrollment: number;
+        };
+        students: GroupStudentBase[];
 }
 
 interface RegisteredUser {
@@ -153,13 +151,15 @@ export default function CourseGroupsManagement() {
 	});
 	const [courses, setCourses] = useState<Array<Course>>([]);
 	const [professors, setProfessors] = useState<Array<Professor>>([]);
-	const [students, setStudents] = useState<GroupStudentStatus[]>([]);
-	const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
-	const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-	const [selectedGroupInfo, setSelectedGroupInfo] = useState<
-		GroupStatusResponse["groupInfo"] | null
-	>(null);
-	const [error, setError] = useState("");
+        const [enrolledStudents, setEnrolledStudents] = useState<GroupStudentStatus[]>([]);
+        const [availableStudents, setAvailableStudents] = useState<GroupStudentStatus[]>([]);
+        const [selectedForAddition, setSelectedForAddition] = useState<number[]>([]);
+        const [selectedForRemoval, setSelectedForRemoval] = useState<number[]>([]);
+        const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+        const [selectedGroupInfo, setSelectedGroupInfo] = useState<
+                GroupStatusResponse["groupInfo"] | null
+        >(null);
+        const [error, setError] = useState("");
 	const { isOpen, onOpen, onClose } = useDisclosure();
 	const {
 		isOpen: isManageStudentsOpen,
@@ -182,6 +182,11 @@ export default function CourseGroupsManagement() {
         const [uploadErrors, setUploadErrors] = useState<string[]>([]);
         const [role, setRole] = useState("student");
         const [selectedFile, setSelectedFile] = useState<File | null>(null);
+        const [enrolledSearch, setEnrolledSearch] = useState("");
+        const [availableSearch, setAvailableSearch] = useState("");
+        const [bulkUsernames, setBulkUsernames] = useState("");
+        const [isStudentsLoading, setIsStudentsLoading] = useState(false);
+        const [isSearchingAvailable, setIsSearchingAvailable] = useState(false);
 
         const fetchCourseGroups = useCallback(async (currentPage: number) => {
                 try {
@@ -270,60 +275,231 @@ export default function CourseGroupsManagement() {
 		}
 	};
 
-	const handleManageStudents = async (groupId: number) => {
-		setSelectedGroupId(groupId);
-		setIsLoadingForm(true);
-		try {
-			const { data } = await courseGroupsApi.getGroupStudents(groupId);
-			setStudents(
-				data.students.map((student) => ({
-					...student,
-					enrollmentStatus: student.isEnrolled
-						? "enrolled"
-						: student.canEnroll
-						? "can_enroll"
-						: "cannot_enroll",
-				})) || []
-			);
-			setSelectedGroupInfo(data.groupInfo);
-			setSelectedStudents(
-				data.students
-					.filter((student) => student.isEnrolled)
-					.map((student) => student.id)
-			);
-			onManageStudentsOpen();
-		} catch (err: any) {
-			toast.error(
-				err.response?.data?.message || "خطا در دریافت اطلاعات دانشجویان"
-			);
-		} finally {
-			setIsLoadingForm(false);
-		}
-	};
+        const loadGroupStudents = useCallback(
+                async (groupId: number) => {
+                        setIsStudentsLoading(true);
+                        try {
+                                const response = await courseGroupsApi.getGroupStudents(groupId);
+                                const payload = response.data as GroupStatusResponse;
+                                const normalized: GroupStudentStatus[] =
+                                        (payload.students ?? []).map((student): GroupStudentStatus => ({
+                                                ...student,
+                                                enrollmentStatus: student.isEnrolled
+                                                        ? "enrolled"
+                                                        : student.canEnroll
+                                                        ? "can_enroll"
+                                                        : "cannot_enroll",
+                                        }));
 
-	const handleAddStudentsToGroup = async () => {
-		if (!selectedGroupId) return;
+                                setEnrolledStudents(
+                                        normalized.filter((student) => student.isEnrolled)
+                                );
+                                setAvailableStudents(
+                                        normalized.filter(
+                                                (student) => !student.isEnrolled && student.canEnroll
+                                        )
+                                );
+                                setSelectedGroupInfo(payload.groupInfo ?? null);
+                                setSelectedForAddition([]);
+                                setSelectedForRemoval([]);
+                        } catch (err: any) {
+                                toast.error(
+                                        err.response?.data?.message ||
+                                                "خطا در دریافت اطلاعات دانشجویان"
+                                );
+                                setEnrolledStudents([]);
+                                setAvailableStudents([]);
+                                setSelectedGroupInfo(null);
+                        } finally {
+                                setIsStudentsLoading(false);
+                        }
+                },
+                []
+        );
 
-		try {
+        const handleManageStudents = async (groupId: number) => {
+                setSelectedGroupId(groupId);
+                setBulkUsernames("");
+                setEnrolledSearch("");
+                setAvailableSearch("");
+                await loadGroupStudents(groupId);
+                onManageStudentsOpen();
+        };
+
+        const handleAddStudentsToGroup = async () => {
+                if (!selectedGroupId || selectedForAddition.length === 0) {
+                        toast.warning("هیچ دانشجویی برای افزودن انتخاب نشده است");
+                        return;
+                }
+
+                try {
                         await courseGroupsApi.addStudentsToGroup(
                                 selectedGroupId,
-                                selectedStudents
+                                selectedForAddition
                         );
-                        toast.success("دانشجویان با موفقیت به گروه اضافه شدند");
-                        onManageStudentsClose();
+                        toast.success("دانشجویان انتخاب‌شده اضافه شدند");
+                        await loadGroupStudents(selectedGroupId);
                         await fetchCourseGroups(page);
-		} catch (err: any) {
-			toast.error(err.response?.data?.message || "خطا در افزودن دانشجویان");
-		}
-	};
+                } catch (err: any) {
+                        toast.error(err.response?.data?.message || "خطا در افزودن دانشجویان");
+                }
+        };
 
-	const handleStudentSelection = (studentId: number) => {
-		setSelectedStudents((prevSelected) =>
-			prevSelected.includes(studentId)
-				? prevSelected.filter((id) => id !== studentId)
-				: [...prevSelected, studentId]
-		);
-	};
+        const handleRemoveStudentsFromGroup = async () => {
+                if (!selectedGroupId || selectedForRemoval.length === 0) {
+                        toast.warning("هیچ دانشجویی برای حذف انتخاب نشده است");
+                        return;
+                }
+
+                try {
+                        await courseGroupsApi.removeStudentsFromGroup(
+                                selectedGroupId,
+                                selectedForRemoval
+                        );
+                        toast.success("دانشجویان انتخاب‌شده حذف شدند");
+                        await loadGroupStudents(selectedGroupId);
+                        await fetchCourseGroups(page);
+                } catch (err: any) {
+                        toast.error(err.response?.data?.message || "خطا در حذف دانشجویان");
+                }
+        };
+
+        const handleAvailableSelection = (studentId: number) => {
+                setSelectedForAddition((prevSelected) =>
+                        prevSelected.includes(studentId)
+                                ? prevSelected.filter((id) => id !== studentId)
+                                : [...prevSelected, studentId]
+                );
+        };
+
+        const handleRemovalSelection = (studentId: number) => {
+                setSelectedForRemoval((prevSelected) =>
+                        prevSelected.includes(studentId)
+                                ? prevSelected.filter((id) => id !== studentId)
+                                : [...prevSelected, studentId]
+                );
+        };
+
+        const handleSearchAvailableStudents = async (value: string) => {
+                setAvailableSearch(value);
+                if (!selectedGroupId) {
+                        return;
+                }
+
+                if (!value.trim()) {
+                        await loadGroupStudents(selectedGroupId);
+                        return;
+                }
+
+                setIsSearchingAvailable(true);
+                try {
+                                const response = await courseGroupsApi.searchAvailableStudents(
+                                        selectedGroupId,
+                                        value
+                                );
+                        const normalized: GroupStudentStatus[] =
+                                ((response.data.students ?? []) as GroupStudentBase[]).map(
+                                        (student): GroupStudentStatus => ({
+                                                ...student,
+                                                isEnrolled: false,
+                                                enrollmentStatus: student.canEnroll
+                                                        ? "can_enroll"
+                                                        : "cannot_enroll",
+                                        })
+                                );
+                        setAvailableStudents(normalized.filter((student) => student.canEnroll));
+                } catch (err: any) {
+                        toast.error(err.response?.data?.message || "خطا در جستجوی دانشجویان");
+                } finally {
+                        setIsSearchingAvailable(false);
+                }
+        };
+
+        const parseUsernames = (value: string) =>
+                Array.from(
+                        new Set(
+                                value
+                                        .split(/\s|,|;|\n/)
+                                        .map((item) => item.trim())
+                                        .filter(Boolean)
+                        )
+                );
+
+        const handleBulkAddUsernames = async () => {
+                if (!selectedGroupId) {
+                        toast.error("گروه انتخاب نشده است");
+                        return;
+                }
+
+                const usernames = parseUsernames(bulkUsernames);
+
+                if (usernames.length === 0) {
+                        toast.warning("حداقل یک نام کاربری وارد کنید");
+                        return;
+                }
+
+                try {
+                        const { data } = await courseGroupsApi.bulkEnrollStudents(
+                                selectedGroupId,
+                                usernames
+                        );
+
+                        if (data.successful?.length) {
+                                toast.success(
+                                        `${data.successful.length} دانشجو با موفقیت اضافه شدند`
+                                );
+                        }
+
+                        data.errors?.forEach(({ username, reason }) => {
+                                toast.error(`${username}: ${reason}`);
+                        });
+
+                        setBulkUsernames("");
+                        await loadGroupStudents(selectedGroupId);
+                        await fetchCourseGroups(page);
+                } catch (err: any) {
+                        toast.error(err.response?.data?.message || "خطا در افزودن دانشجویان");
+                }
+        };
+
+        const filteredEnrolledStudents = useMemo(() => {
+                const term = enrolledSearch.trim().toLowerCase();
+                if (!term) {
+                        return enrolledStudents;
+                }
+
+                return enrolledStudents.filter((student) => {
+                        const fullName = `${student.firstName ?? ""} ${student.lastName ?? ""}`
+                                .trim()
+                                .toLowerCase();
+                        return (
+                                student.username.toLowerCase().includes(term) ||
+                                fullName.includes(term)
+                        );
+                });
+        }, [enrolledStudents, enrolledSearch]);
+
+        const filteredAvailableStudents = useMemo(() => {
+                const term = availableSearch.trim().toLowerCase();
+                if (!term) {
+                        return availableStudents;
+                }
+
+                return availableStudents.filter((student) => {
+                        const fullName = `${student.firstName ?? ""} ${student.lastName ?? ""}`
+                                .trim()
+                                .toLowerCase();
+                        return (
+                                student.username.toLowerCase().includes(term) ||
+                                fullName.includes(term)
+                        );
+                });
+        }, [availableStudents, availableSearch]);
+
+        const bulkUsernameCount = useMemo(
+                () => parseUsernames(bulkUsernames).length,
+                [bulkUsernames]
+        );
 
 	const handleCopyId = (id: number) => {
 		navigator.clipboard.writeText(id.toString());
@@ -648,118 +824,189 @@ export default function CourseGroupsManagement() {
                                 </ModalContent>
                         </Modal>
 
-			{/* Manage Students Modal */}
-			<Modal
-				isOpen={isManageStudentsOpen}
-				onClose={onManageStudentsClose}
-				size="2xl">
-				<ModalContent>
-					{(onClose) => (
-						<>
-							<ModalHeader className="flex flex-col gap-1">
-								<div className="flex items-center justify-between">
-									<h3 className="text-lg font-bold">مدیریت دانشجویان گروه</h3>
-									<Chip size="sm" variant="flat" color="primary">
-										ظرفیت: {selectedGroupInfo?.currentEnrollment || 0}/
-										{selectedGroupInfo?.capacity || 0}
-									</Chip>
-								</div>
-								<span className="text-sm text-neutral-500">
-									{selectedGroupInfo?.courseName}
-								</span>
-							</ModalHeader>
-							<ModalBody>
-								<div className="flex flex-col gap-4">
-                                                                        <Input
-                                                                                placeholder="جستجوی دانشجو..."
-                                                                                startContent={<Search className="w-4 h-4" />}
-                                                                                aria-label="جستجوی دانشجو در گروه"
-                                                                        />
-
-									<Card>
-										<CardBody className="p-0">
-											<Table
-												removeWrapper
-												aria-label="لیست دانشجویان"
-												classNames={{
-													base: "max-h-[400px] overflow-auto",
-												}}>
-												<TableHeader>
-													<TableColumn>انتخاب</TableColumn>
-                                                                                                        <TableColumn>نام دانشجو</TableColumn>
-													<TableColumn>وضعیت</TableColumn>
-												</TableHeader>
-												<TableBody>
-													{students.map((student) => (
-														<TableRow key={student.id}>
-															<TableCell>
-                                                                                                                       <Checkbox
-                                                                                                                               isSelected={selectedStudents.includes(
-                                                                                                                                        student.id
-                                                                                                                               )}
-                                                                                                                               onValueChange={() =>
-                                                                                                                                        handleStudentSelection(student.id)
-                                                                                                                               }
-                                                                                                                               isDisabled={
-                                                                                                                                        !student.canEnroll && !student.isEnrolled
-                                                                                                                               }
-                                                                                                                               aria-label={`انتخاب ${formatUserName(student)}`}
-                                                                                                                       />
-                                                                                                                       </TableCell>
+                        {/* Manage Students Modal */}
+                        <Modal
+                                isOpen={isManageStudentsOpen}
+                                onClose={onManageStudentsClose}
+                                size="3xl">
+                                <ModalContent>
+                                        {(onClose) => (
+                                                <>
+                                                        <ModalHeader className="flex flex-col gap-1">
+                                                                <div className="flex items-center justify-between">
+                                                                        <h3 className="text-lg font-bold">مدیریت دانشجویان گروه</h3>
+                                                                        <Chip size="sm" variant="flat" color="primary">
+                                                                                ظرفیت: {selectedGroupInfo?.currentEnrollment ?? 0}/
+                                                                                {selectedGroupInfo?.capacity ?? 0}
+                                                                        </Chip>
+                                                                </div>
+                                                                <span className="text-sm text-neutral-500">
+                                                                        {selectedGroupInfo?.courseName || "گروه انتخاب‌شده"}
+                                                                </span>
+                                                        </ModalHeader>
+                                                        <ModalBody className="space-y-6">
+                                                                <Card>
+                                                                        <CardBody className="space-y-4">
+                                                                                <div className="flex items-center justify-between">
+                                                                                        <span className="font-semibold">دانشجویان ثبت‌نام‌شده</span>
+                                                                                        <Chip size="sm" variant="flat" color="success">
+                                                                                                {filteredEnrolledStudents.length} نفر
+                                                                                        </Chip>
+                                                                                </div>
+                                                                                <Input
+                                                                                        placeholder="جستجو در میان اعضای گروه..."
+                                                                                        value={enrolledSearch}
+                                                                                        onChange={(e) => setEnrolledSearch(e.target.value)}
+                                                                                        startContent={<Search className="w-4 h-4 text-neutral-500" />}
+                                                                                        aria-label="جستجوی دانشجویان ثبت‌نام‌شده"
+                                                                                />
+                                                                                <div className="max-h-[220px] overflow-y-auto border border-neutral-200/60 dark:border-neutral-800/60 rounded-lg">
+                                                                                        <Table removeWrapper aria-label="لیست دانشجویان گروه">
+                                                                                                <TableHeader>
+                                                                                                        <TableColumn className="w-16">انتخاب</TableColumn>
+                                                                                                        <TableColumn>نام و نام خانوادگی</TableColumn>
+                                                                                                        <TableColumn>نام کاربری</TableColumn>
+                                                                                                </TableHeader>
+                                                                                                <TableBody
+                                                                                                        emptyContent={
+                                                                                                                isStudentsLoading
+                                                                                                                        ? "در حال بارگذاری..."
+                                                                                                                        : "دانشجویی یافت نشد"
+                                                                                                        }>
+                                                                                                        {filteredEnrolledStudents.map((student) => (
+                                                                                                                <TableRow key={student.id}>
                                                                                                                         <TableCell>
-                                                                                                                                {formatUserName(student)}
+                                                                                                                                <Checkbox
+                                                                                                                                        isSelected={selectedForRemoval.includes(student.id)}
+                                                                                                                                        onValueChange={() => handleRemovalSelection(student.id)}
+                                                                                                                                        aria-label={`انتخاب ${formatUserName(student)}`}
+                                                                                                                                />
                                                                                                                         </TableCell>
-															<TableCell>
-																{student.isEnrolled ? (
-																	<Chip
-																		color="success"
-																		size="sm"
-																		variant="flat">
-																		عضو گروه
-																	</Chip>
-																) : student.canEnroll ? (
-																	<Chip
-																		color="primary"
-																		size="sm"
-																		variant="flat">
-																		قابل افزودن
-																	</Chip>
-																) : (
-																	<Chip color="danger" size="sm" variant="flat">
-																		غیرقابل افزودن
-																	</Chip>
-																)}
-															</TableCell>
-														</TableRow>
-													))}
-												</TableBody>
-											</Table>
-										</CardBody>
-									</Card>
+                                                                                                                        <TableCell className="font-medium">{formatUserName(student)}</TableCell>
+                                                                                                                        <TableCell className="text-sm text-neutral-500">{student.username}</TableCell>
+                                                                                                                </TableRow>
+                                                                                                        ))}
+                                                                                                </TableBody>
+                                                                                        </Table>
+                                                                                </div>
+                                                                                <div className="flex justify-end">
+                                                                                        <Button
+                                                                                                color="danger"
+                                                                                                variant="flat"
+                                                                                                onPress={handleRemoveStudentsFromGroup}
+                                                                                                isDisabled={selectedForRemoval.length === 0}
+                                                                                        >
+                                                                                                حذف دانشجویان انتخاب‌شده
+                                                                                        </Button>
+                                                                                </div>
+                                                                        </CardBody>
+                                                                </Card>
 
-									<div className="flex justify بین items-center">
-										<span className="text-sm text-neutral-500">
-											{selectedStudents.length} دانشجو انتخاب شده
-										</span>
-									</div>
-								</div>
-							</ModalBody>
-							<ModalFooter>
-								<Button color="danger" variant="light" onPress={onClose}>
-									انصراف
-								</Button>
-								<Button
-									color="primary"
-									onPress={handleAddStudentsToGroup}
-									isLoading={isLoadingForm}
-									isDisabled={isLoadingForm}>
-									ذخیره تغییرات
-								</Button>
-							</ModalFooter>
-						</>
-					)}
-				</ModalContent>
-			</Modal>
+                                                                <Divider />
+
+                                                                <Card>
+                                                                        <CardBody className="space-y-4">
+                                                                                <div className="flex items-center justify-between">
+                                                                                        <span className="font-semibold">دانشجویان قابل افزودن</span>
+                                                                                        <Chip size="sm" variant="flat" color="primary">
+                                                                                                {filteredAvailableStudents.length} نفر
+                                                                                        </Chip>
+                                                                                </div>
+                                                                                <Input
+                                                                                        placeholder="جستجوی دانشجوی جدید..."
+                                                                                        value={availableSearch}
+                                                                                        onChange={(e) => handleSearchAvailableStudents(e.target.value)}
+                                                                                        startContent={<Search className="w-4 h-4 text-neutral-500" />}
+                                                                                        aria-label="جستجوی دانشجویان برای افزودن"
+                                                                                />
+                                                                                {isSearchingAvailable && (
+                                                                                        <div className="flex items-center gap-2 text-sm text-neutral-500">
+                                                                                                <CircularProgress size="sm" aria-label="در حال جستجو" />
+                                                                                                در حال جستجو...
+                                                                                        </div>
+                                                                                )}
+                                                                                <div className="max-h-[220px] overflow-y-auto border border-neutral-200/60 dark:border-neutral-800/60 rounded-lg">
+                                                                                        <Table removeWrapper aria-label="لیست دانشجویان قابل افزودن">
+                                                                                                <TableHeader>
+                                                                                                        <TableColumn className="w-16">انتخاب</TableColumn>
+                                                                                                        <TableColumn>نام و نام خانوادگی</TableColumn>
+                                                                                                        <TableColumn>نام کاربری</TableColumn>
+                                                                                                </TableHeader>
+                                                                                                <TableBody
+                                                                                                        emptyContent={
+                                                                                                                isStudentsLoading
+                                                                                                                        ? "در حال بارگذاری..."
+                                                                                                                        : "دانشجویی برای افزودن یافت نشد"
+                                                                                                        }>
+                                                                                                        {filteredAvailableStudents.map((student) => (
+                                                                                                                <TableRow key={student.id}>
+                                                                                                                        <TableCell>
+                                                                                                                                <Checkbox
+                                                                                                                                        isSelected={selectedForAddition.includes(student.id)}
+                                                                                                                                        onValueChange={() => handleAvailableSelection(student.id)}
+                                                                                                                                        isDisabled={!student.canEnroll}
+                                                                                                                                        aria-label={`انتخاب ${formatUserName(student)}`}
+                                                                                                                                />
+                                                                                                                        </TableCell>
+                                                                                                                        <TableCell className="font-medium">{formatUserName(student)}</TableCell>
+                                                                                                                        <TableCell className="text-sm text-neutral-500">{student.username}</TableCell>
+                                                                                                                </TableRow>
+                                                                                                        ))}
+                                                                                                </TableBody>
+                                                                                        </Table>
+                                                                                </div>
+                                                                                <div className="flex justify-end">
+                                                                                        <Button
+                                                                                                color="primary"
+                                                                                                variant="flat"
+                                                                                                onPress={handleAddStudentsToGroup}
+                                                                                                isDisabled={selectedForAddition.length === 0}
+                                                                                        >
+                                                                                                افزودن دانشجویان انتخاب‌شده
+                                                                                        </Button>
+                                                                                </div>
+                                                                        </CardBody>
+                                                                </Card>
+
+                                                                <Card>
+                                                                        <CardBody className="space-y-3">
+                                                                                <div className="flex items-center justify-between">
+                                                                                        <span className="font-semibold">افزودن با نام کاربری</span>
+                                                                                        <Chip size="sm" variant="flat" color="secondary">
+                                                                                                {bulkUsernameCount} نام کاربری
+                                                                                        </Chip>
+                                                                                </div>
+                                                                                <Textarea
+                                                                                        minRows={4}
+                                                                                        placeholder="نام‌های کاربری را با فاصله، ویرگول یا خط جدید جدا کنید"
+                                                                                        value={bulkUsernames}
+                                                                                        onChange={(e) => setBulkUsernames(e.target.value)}
+                                                                                        aria-label="افزودن گروهی دانشجویان"
+                                                                                />
+                                                                                <p className="text-xs text-neutral-500">
+                                                                                        مثال: <span className="font-mono">student1 student2 student3</span>
+                                                                                </p>
+                                                                                <div className="flex justify-end">
+                                                                                        <Button
+                                                                                                color="primary"
+                                                                                                onPress={handleBulkAddUsernames}
+                                                                                                isDisabled={bulkUsernames.trim().length === 0}
+                                                                                        >
+                                                                                                افزودن نام‌های کاربری
+                                                                                        </Button>
+                                                                                </div>
+                                                                        </CardBody>
+                                                                </Card>
+                                                        </ModalBody>
+                                                        <ModalFooter>
+                                                                <Button color="danger" variant="light" onPress={onClose}>
+                                                                        بستن
+                                                                </Button>
+                                                        </ModalFooter>
+                                                </>
+                                        )}
+                                </ModalContent>
+                        </Modal>
 
 			{/* Upload Excel Modal */}
                         <Modal
