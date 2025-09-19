@@ -98,6 +98,36 @@ const STATUS_ELIGIBLE_VALUES = new Set([
   "waitlisted",
 ]);
 
+type GroupStudentsApiResponse = Awaited<
+  ReturnType<typeof groupsApi.getGroupStudents>
+> extends { data: infer T }
+  ? T
+  : never;
+
+const KEYWORDS_ENROLLED = [
+  "enrolled",
+  "member",
+  "registered",
+  "joined",
+  "active",
+];
+
+const KEYWORDS_AVAILABLE = [
+  "available",
+  "eligible",
+  "pending",
+  "wait",
+  "candidate",
+  "waiting",
+  "reserve",
+];
+
+const isLikelyEnrolledKey = (key: string) =>
+  KEYWORDS_ENROLLED.some((keyword) => key.includes(keyword));
+
+const isLikelyAvailableKey = (key: string) =>
+  KEYWORDS_AVAILABLE.some((keyword) => key.includes(keyword));
+
 const toNonEmptyString = (value: unknown): string | undefined => {
   if (typeof value !== "string") {
     return undefined;
@@ -225,6 +255,124 @@ const normalizeGroupInfo = (info?: RawGroupInfo | null): GroupInfo | null => {
   };
 };
 
+const normalizeStudentsResponse = (
+  data: GroupStudentsApiResponse
+): GroupStudent[] => {
+  const collections: Array<{
+    list: RawGroupStudent[];
+    overrides?: { isEnrolled?: boolean; canEnroll?: boolean };
+  }> = [];
+
+  const directStudents = data.students;
+
+  if (Array.isArray(directStudents)) {
+    collections.push({ list: directStudents });
+  } else if (directStudents && typeof directStudents === "object") {
+    Object.entries(directStudents as Record<string, unknown>).forEach(
+      ([key, value]) => {
+        if (!Array.isArray(value)) return;
+
+        const normalizedKey = key.toLowerCase();
+        let overrides: { isEnrolled?: boolean; canEnroll?: boolean } | undefined;
+
+        if (isLikelyEnrolledKey(normalizedKey)) {
+          overrides = { isEnrolled: true };
+        } else if (isLikelyAvailableKey(normalizedKey)) {
+          overrides = { isEnrolled: false, canEnroll: true };
+        }
+
+        collections.push({ list: value, overrides });
+      }
+    );
+  }
+
+  const fallbackSources: Array<{
+    list: RawGroupStudent[] | undefined | null;
+    overrides?: { isEnrolled?: boolean; canEnroll?: boolean };
+  }> = [
+    { list: data.enrolledStudents, overrides: { isEnrolled: true } },
+    { list: data.enrolled, overrides: { isEnrolled: true } },
+    {
+      list: data.availableStudents,
+      overrides: { isEnrolled: false, canEnroll: true },
+    },
+    {
+      list: data.available,
+      overrides: { isEnrolled: false, canEnroll: true },
+    },
+  ];
+
+  fallbackSources.forEach(({ list, overrides }) => {
+    if (Array.isArray(list)) {
+      collections.push({ list, overrides });
+    }
+  });
+
+  const result: GroupStudent[] = [];
+  const indexById = new Map<number, number>();
+
+  const upsertStudents = (
+    list: RawGroupStudent[],
+    overrides?: { isEnrolled?: boolean; canEnroll?: boolean }
+  ) => {
+    list.forEach((student) => {
+      const normalized = normalizeGroupStudent(student, overrides);
+      const existingIndex = indexById.get(student.id);
+
+      if (existingIndex != null) {
+        const existing = result[existingIndex];
+        const resolvedIsEnrolled = existing.isEnrolled || normalized.isEnrolled;
+        const resolvedCanEnroll = resolvedIsEnrolled
+          ? false
+          : existing.canEnroll || normalized.canEnroll;
+        const mergedFirstName = normalized.firstName ?? existing.firstName;
+        const mergedLastName = normalized.lastName ?? existing.lastName;
+        const mergedFullName =
+          normalized.fullName ??
+          existing.fullName ??
+          [mergedFirstName, mergedLastName]
+            .filter((value): value is string => Boolean(value))
+            .join(" ") ||
+          undefined;
+
+        result[existingIndex] = {
+          ...existing,
+          ...normalized,
+          isEnrolled: resolvedIsEnrolled,
+          canEnroll: resolvedCanEnroll,
+          firstName: mergedFirstName,
+          lastName: mergedLastName,
+          fullName: mergedFullName,
+        };
+        return;
+      }
+
+      indexById.set(student.id, result.length);
+      result.push(normalized);
+    });
+  };
+
+  collections.forEach(({ list, overrides }) => upsertStudents(list, overrides));
+
+  if (result.length === 0) {
+    return result;
+  }
+
+  return result.sort((a, b) => {
+    if (a.isEnrolled !== b.isEnrolled) {
+      return a.isEnrolled ? -1 : 1;
+    }
+
+    if (a.canEnroll !== b.canEnroll) {
+      return a.canEnroll ? -1 : 1;
+    }
+
+    return a.username.localeCompare(b.username, undefined, {
+      sensitivity: "base",
+    });
+  });
+};
+
 export default function GroupManagement() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [page, setPage] = useState(1);
@@ -314,21 +462,9 @@ export default function GroupManagement() {
       setIsStudentsLoading(true);
       try {
         const { data } = await groupsApi.getGroupStudents(groupId);
-        const combined = Array.isArray(data.students) ? data.students : [];
-        let normalized = combined.map((student) => normalizeGroupStudent(student));
+        const normalizedStudents = normalizeStudentsResponse(data);
 
-        if (normalized.length === 0) {
-          const fallbackSource = Array.isArray(data.enrolledStudents)
-            ? data.enrolledStudents
-            : Array.isArray(data.enrolled)
-            ? data.enrolled
-            : [];
-          normalized = fallbackSource.map((student) =>
-            normalizeGroupStudent(student, { isEnrolled: true })
-          );
-        }
-
-        setGroupStudents(normalized);
+        setGroupStudents(normalizedStudents);
         setGroupInfo(normalizeGroupInfo(data.groupInfo));
         setSelectedForRemoval([]);
         setSelectedForAddition([]);
