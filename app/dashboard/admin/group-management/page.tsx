@@ -52,12 +52,17 @@ interface RawGroupStudent {
   username: string;
   firstName?: string | null;
   lastName?: string | null;
+  fullName?: string | null;
   first_name?: string | null;
   last_name?: string | null;
+  full_name?: string | null;
   isEnrolled?: boolean | null;
   canEnroll?: boolean | null;
   is_enrolled?: boolean | null;
   can_enroll?: boolean | null;
+  enrollmentStatus?: string | null;
+  enrollment_status?: string | null;
+  status?: string | null;
 }
 
 interface RawGroupInfo {
@@ -71,40 +76,125 @@ interface RawGroupInfo {
   current_enrollment?: number | null;
 }
 
+type EnrollmentResult = {
+  successful?: Array<{ username: string }>;
+  errors?: Array<{ username: string; reason: string }>;
+};
+
+const STATUS_ENROLLED_VALUES = new Set([
+  "enrolled",
+  "member",
+  "registered",
+  "joined",
+  "active",
+]);
+
+const STATUS_ELIGIBLE_VALUES = new Set([
+  "can_enroll",
+  "available",
+  "eligible",
+  "pending",
+  "pending_enrollment",
+  "waitlisted",
+]);
+
+const toNonEmptyString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const parseFlexibleBoolean = (value: unknown): boolean | undefined => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes", "y", "on"].includes(normalized)) {
+      return true;
+    }
+
+    if (["false", "0", "no", "n", "off"].includes(normalized)) {
+      return false;
+    }
+  }
+
+  return undefined;
+};
+
+const resolveStatusValue = (student: RawGroupStudent) => {
+  const rawStatus =
+    student.enrollmentStatus ?? student.enrollment_status ?? student.status;
+  return typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
+};
+
+const resolveNameParts = (
+  student: RawGroupStudent
+): { firstName?: string; lastName?: string; fullName?: string } => {
+  let firstName = toNonEmptyString(student.firstName ?? student.first_name);
+  let lastName = toNonEmptyString(student.lastName ?? student.last_name);
+  const explicitFullName = toNonEmptyString(
+    student.fullName ?? student.full_name
+  );
+
+  if ((!firstName || !lastName) && explicitFullName) {
+    const parts = explicitFullName.split(/\s+/).filter(Boolean);
+    if (!firstName && parts.length > 0) {
+      firstName = parts.shift();
+    }
+    if (!lastName && parts.length > 0) {
+      lastName = parts.join(" ") || undefined;
+    }
+  }
+
+  const fullName =
+    explicitFullName ||
+    [firstName, lastName].filter((value): value is string => Boolean(value)).join(" ") ||
+    undefined;
+
+  return { firstName, lastName, fullName };
+};
+
 const normalizeGroupStudent = (
   student: RawGroupStudent,
   overrides?: { isEnrolled?: boolean; canEnroll?: boolean }
 ): GroupStudent => {
+  const statusValue = resolveStatusValue(student);
+  const statusIndicatesEnrollment = STATUS_ENROLLED_VALUES.has(statusValue);
+  const statusIndicatesEligibility = STATUS_ELIGIBLE_VALUES.has(statusValue);
+
+  const booleanIsEnrolled = parseFlexibleBoolean(
+    student.isEnrolled ?? student.is_enrolled
+  );
+  const booleanCanEnroll = parseFlexibleBoolean(
+    student.canEnroll ?? student.can_enroll
+  );
+
   const resolvedIsEnrolled =
     typeof overrides?.isEnrolled === "boolean"
       ? overrides.isEnrolled
-      : typeof student.isEnrolled === "boolean"
-      ? student.isEnrolled
-      : typeof student.is_enrolled === "boolean"
-      ? student.is_enrolled
-      : false;
+      : typeof booleanIsEnrolled === "boolean"
+      ? booleanIsEnrolled
+      : statusIndicatesEnrollment;
 
-  const resolvedCanEnroll =
+  const candidateCanEnroll =
     typeof overrides?.canEnroll === "boolean"
       ? overrides.canEnroll
-      : typeof student.canEnroll === "boolean"
-      ? student.canEnroll
-      : typeof student.can_enroll === "boolean"
-      ? student.can_enroll
-      : false;
+      : typeof booleanCanEnroll === "boolean"
+      ? booleanCanEnroll
+      : statusIndicatesEligibility
+      ? true
+      : !resolvedIsEnrolled;
 
-  const toOptionalString = (value: unknown): string | undefined => {
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      return trimmed.length > 0 ? trimmed : undefined;
-    }
-
-    return undefined;
-  };
-
-  const firstName = toOptionalString(student.firstName ?? student.first_name);
-  const lastName = toOptionalString(student.lastName ?? student.last_name);
-  const fullName = [firstName, lastName].filter(Boolean).join(" ") || undefined;
+  const { firstName, lastName, fullName } = resolveNameParts(student);
 
   return {
     id: student.id,
@@ -113,7 +203,7 @@ const normalizeGroupStudent = (
     lastName,
     fullName,
     isEnrolled: resolvedIsEnrolled,
-    canEnroll: resolvedCanEnroll,
+    canEnroll: resolvedIsEnrolled ? false : candidateCanEnroll,
   };
 };
 
@@ -151,11 +241,27 @@ export default function GroupManagement() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [groupStudents, setGroupStudents] = useState<GroupStudent[]>([]);
-  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+  const [selectedForRemoval, setSelectedForRemoval] = useState<number[]>([]);
+  const [selectedForAddition, setSelectedForAddition] = useState<string[]>([]);
   const [studentSearch, setStudentSearch] = useState("");
   const [bulkUsernames, setBulkUsernames] = useState("");
   const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null);
   const [isStudentsLoading, setIsStudentsLoading] = useState(false);
+
+  const showEnrollmentFeedback = useCallback((result: EnrollmentResult) => {
+    const successCount = result.successful?.length ?? 0;
+    const errorCount = result.errors?.length ?? 0;
+
+    if (successCount > 0) {
+      toast.success(`${successCount} دانشجو با موفقیت به گروه اضافه شد`);
+    }
+
+    if (errorCount > 0) {
+      result.errors?.forEach(({ username, reason }) => {
+        toast.error(`${username}: ${reason}`);
+      });
+    }
+  }, []);
 
   const fetchGroups = useCallback(
     async (currentPage: number, query: string) => {
@@ -224,7 +330,8 @@ export default function GroupManagement() {
 
         setGroupStudents(normalized);
         setGroupInfo(normalizeGroupInfo(data.groupInfo));
-        setSelectedStudentIds([]);
+        setSelectedForRemoval([]);
+        setSelectedForAddition([]);
       } catch (err: any) {
         toast.error(err.response?.data?.message ?? err.message ?? "خطا در دریافت دانشجویان");
         setGroupStudents([]);
@@ -279,21 +386,71 @@ export default function GroupManagement() {
     return details.join(" | ");
   }, [groupInfo]);
 
-  const toggleStudentSelection = (studentId: number) => {
-    setSelectedStudentIds((prev) =>
-      prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]
-    );
+  const toggleStudentSelection = (student: GroupStudent) => {
+    if (student.isEnrolled) {
+      setSelectedForRemoval((prev) =>
+        prev.includes(student.id)
+          ? prev.filter((id) => id !== student.id)
+          : [...prev, student.id]
+      );
+
+      if (!student.canEnroll) {
+        setSelectedForAddition((prev) =>
+          prev.filter((username) => username !== student.username)
+        );
+      }
+
+      return;
+    }
+
+    if (student.canEnroll) {
+      setSelectedForAddition((prev) =>
+        prev.includes(student.username)
+          ? prev.filter((username) => username !== student.username)
+          : [...prev, student.username]
+      );
+    }
+  };
+
+  const isStudentSelected = (student: GroupStudent) => {
+    if (student.isEnrolled) {
+      return selectedForRemoval.includes(student.id);
+    }
+
+    if (student.canEnroll) {
+      return selectedForAddition.includes(student.username);
+    }
+
+    return false;
   };
 
   const handleRemoveStudents = async () => {
-    if (!selectedGroup || selectedStudentIds.length === 0) return;
+    if (!selectedGroup || selectedForRemoval.length === 0) return;
     try {
-      await groupsApi.removeStudentsFromGroup(selectedGroup.id, selectedStudentIds);
+      await groupsApi.removeStudentsFromGroup(selectedGroup.id, selectedForRemoval);
       toast.success("دانشجویان انتخاب‌شده از گروه حذف شدند");
       await loadGroupStudents(selectedGroup.id);
       fetchGroups(page, search);
     } catch (err: any) {
       toast.error(err.response?.data?.message ?? err.message ?? "خطا در حذف دانشجویان");
+    }
+  };
+
+  const handleAddSelectedStudents = async () => {
+    if (!selectedGroup || selectedForAddition.length === 0) return;
+
+    try {
+      const { data } = await groupsApi.addStudentsToGroupByUsername(
+        selectedGroup.id,
+        selectedForAddition
+      );
+      showEnrollmentFeedback(data);
+
+      setSelectedForAddition([]);
+      await loadGroupStudents(selectedGroup.id);
+      fetchGroups(page, search);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message ?? err.message ?? "خطا در افزودن دانشجویان");
     }
   };
 
@@ -317,18 +474,7 @@ export default function GroupManagement() {
 
     try {
       const { data } = await groupsApi.addStudentsToGroupByUsername(selectedGroup.id, usernames);
-      const successCount = data.successful?.length ?? 0;
-      const errorCount = data.errors?.length ?? 0;
-
-      if (successCount > 0) {
-        toast.success(`${successCount} دانشجو با موفقیت به گروه اضافه شد`);
-      }
-
-      if (errorCount > 0) {
-        data.errors?.forEach(({ username, reason }) => {
-          toast.error(`${username}: ${reason}`);
-        });
-      }
+      showEnrollmentFeedback(data);
 
       setBulkUsernames("");
       await loadGroupStudents(selectedGroup.id);
@@ -526,9 +672,9 @@ export default function GroupManagement() {
                             <TableRow key={student.id}>
                               <TableCell>
                                 <Checkbox
-                                  isSelected={selectedStudentIds.includes(student.id)}
-                                  onValueChange={() => toggleStudentSelection(student.id)}
-                                  isDisabled={!student.isEnrolled}
+                                  isSelected={isStudentSelected(student)}
+                                  onValueChange={() => toggleStudentSelection(student)}
+                                  isDisabled={!student.isEnrolled && !student.canEnroll}
                                   aria-label={`انتخاب ${student.username}`}
                                 />
                               </TableCell>
@@ -566,15 +712,28 @@ export default function GroupManagement() {
                         </TableBody>
                       </Table>
                     </div>
-                    <div className="flex justify-end">
-                      <Button
-                        color="danger"
-                        variant="flat"
-                        onPress={handleRemoveStudents}
-                        isDisabled={selectedStudentIds.length === 0}
-                      >
-                        حذف دانشجویان انتخاب‌شده
-                      </Button>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs text-neutral-500">
+                        برای افزودن دانشجویان جدید، وضعیت «قابل ثبت‌نام» را انتخاب کنید.
+                      </p>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          color="primary"
+                          variant="flat"
+                          onPress={handleAddSelectedStudents}
+                          isDisabled={selectedForAddition.length === 0}
+                        >
+                          افزودن دانشجویان انتخاب‌شده
+                        </Button>
+                        <Button
+                          color="danger"
+                          variant="flat"
+                          onPress={handleRemoveStudents}
+                          isDisabled={selectedForRemoval.length === 0}
+                        >
+                          حذف دانشجویان انتخاب‌شده
+                        </Button>
+                      </div>
                     </div>
                   </CardBody>
                 </Card>

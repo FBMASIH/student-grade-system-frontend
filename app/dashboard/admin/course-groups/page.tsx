@@ -60,6 +60,7 @@ interface GroupStudentBase {
         username: string;
         firstName?: string;
         lastName?: string;
+        fullName?: string;
         isEnrolled: boolean;
         canEnroll: boolean;
 }
@@ -73,12 +74,17 @@ interface RawGroupStudent {
         username: string;
         firstName?: string | null;
         lastName?: string | null;
+        fullName?: string | null;
         first_name?: string | null;
         last_name?: string | null;
+        full_name?: string | null;
         isEnrolled?: boolean | null;
         canEnroll?: boolean | null;
         is_enrolled?: boolean | null;
         can_enroll?: boolean | null;
+        enrollmentStatus?: string | null;
+        enrollment_status?: string | null;
+        status?: string | null;
 }
 
 interface RawGroupInfo {
@@ -101,46 +107,137 @@ interface GroupStatusResponse {
         availableStudents?: RawGroupStudent[];
 }
 
+const STATUS_ENROLLED_VALUES = new Set([
+        "enrolled",
+        "member",
+        "registered",
+        "joined",
+        "active",
+]);
+
+const STATUS_ELIGIBLE_VALUES = new Set([
+        "can_enroll",
+        "available",
+        "eligible",
+        "pending",
+        "pending_enrollment",
+        "waitlisted",
+]);
+
+const toNonEmptyString = (value: unknown): string | undefined => {
+        if (typeof value !== "string") {
+                return undefined;
+        }
+
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const parseFlexibleBoolean = (value: unknown): boolean | undefined => {
+        if (typeof value === "boolean") {
+                return value;
+        }
+
+        if (typeof value === "number") {
+                return value !== 0;
+        }
+
+        if (typeof value === "string") {
+                const normalized = value.trim().toLowerCase();
+                if (["true", "1", "yes", "y", "on"].includes(normalized)) {
+                        return true;
+                }
+
+                if (["false", "0", "no", "n", "off"].includes(normalized)) {
+                        return false;
+                }
+        }
+
+        return undefined;
+};
+
+const resolveStatusValue = (student: RawGroupStudent) => {
+        const rawStatus =
+                student.enrollmentStatus ?? student.enrollment_status ?? student.status;
+        return typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
+};
+
+const resolveNameParts = (
+        student: RawGroupStudent
+): { firstName?: string; lastName?: string; fullName?: string } => {
+        let firstName = toNonEmptyString(student.firstName ?? student.first_name);
+        let lastName = toNonEmptyString(student.lastName ?? student.last_name);
+        const explicitFullName = toNonEmptyString(student.fullName ?? student.full_name);
+
+        if ((!firstName || !lastName) && explicitFullName) {
+                const parts = explicitFullName.split(/\s+/).filter(Boolean);
+                if (!firstName && parts.length > 0) {
+                        firstName = parts.shift();
+                }
+                if (!lastName && parts.length > 0) {
+                        lastName = parts.join(" ") || undefined;
+                }
+        }
+
+        const fullName =
+                explicitFullName ||
+                [firstName, lastName]
+                        .filter((value): value is string => Boolean(value))
+                        .join(" ") ||
+                undefined;
+
+        return { firstName, lastName, fullName };
+};
+
 const normalizeGroupStudent = (
         student: RawGroupStudent,
         overrides?: { isEnrolled?: boolean; canEnroll?: boolean }
 ): GroupStudentStatus => {
-        const rawFirstName = student.firstName ?? student.first_name ?? "";
-        const rawLastName = student.lastName ?? student.last_name ?? "";
+        const statusValue = resolveStatusValue(student);
+        const statusIndicatesEnrollment = STATUS_ENROLLED_VALUES.has(statusValue);
+        const statusIndicatesEligibility = STATUS_ELIGIBLE_VALUES.has(statusValue);
 
-        const firstName = typeof rawFirstName === "string" ? rawFirstName.trim() : "";
-        const lastName = typeof rawLastName === "string" ? rawLastName.trim() : "";
+        const booleanIsEnrolled = parseFlexibleBoolean(
+                student.isEnrolled ?? student.is_enrolled
+        );
+        const booleanCanEnroll = parseFlexibleBoolean(
+                student.canEnroll ?? student.can_enroll
+        );
 
-        const isEnrolled =
+        const resolvedIsEnrolled =
                 typeof overrides?.isEnrolled === "boolean"
                         ? overrides.isEnrolled
-                        : typeof student.isEnrolled === "boolean"
-                        ? student.isEnrolled
-                        : typeof student.is_enrolled === "boolean"
-                        ? student.is_enrolled
-                        : false;
+                        : typeof booleanIsEnrolled === "boolean"
+                        ? booleanIsEnrolled
+                        : statusIndicatesEnrollment;
 
-        const canEnroll =
+        const candidateCanEnroll =
                 typeof overrides?.canEnroll === "boolean"
                         ? overrides.canEnroll
-                        : typeof student.canEnroll === "boolean"
-                        ? student.canEnroll
-                        : typeof student.can_enroll === "boolean"
-                        ? student.can_enroll
-                        : false;
+                        : typeof booleanCanEnroll === "boolean"
+                        ? booleanCanEnroll
+                        : statusIndicatesEligibility
+                        ? true
+                        : !resolvedIsEnrolled;
+
+        const finalCanEnroll = resolvedIsEnrolled ? false : candidateCanEnroll;
+        const enrollmentStatus: EnrollmentStatus = resolvedIsEnrolled
+                ? "enrolled"
+                : finalCanEnroll
+                ? "can_enroll"
+                : "cannot_enroll";
+
+        const { firstName, lastName, fullName } = resolveNameParts(student);
 
         return {
                 id: student.id,
                 username: student.username,
-                firstName: firstName || undefined,
-                lastName: lastName || undefined,
-                isEnrolled,
-                canEnroll,
-                enrollmentStatus: isEnrolled
-                        ? "enrolled"
-                        : canEnroll
-                        ? "can_enroll"
-                        : "cannot_enroll",
+                firstName,
+                lastName,
+                fullName,
+                isEnrolled: resolvedIsEnrolled,
+                canEnroll: finalCanEnroll,
+                enrollmentStatus,
         };
 };
 
@@ -211,8 +308,9 @@ interface BulkEnrollmentResponse {
 interface GroupStudent {
         id: number;
         username: string;
-        firstName: string;
-        lastName: string;
+        firstName?: string;
+        lastName?: string;
+        fullName?: string;
         isEnrolled: boolean;
         canEnroll: boolean;
 }
@@ -253,9 +351,7 @@ export default function CourseGroupsManagement() {
         const [selectedForAddition, setSelectedForAddition] = useState<number[]>([]);
         const [selectedForRemoval, setSelectedForRemoval] = useState<number[]>([]);
         const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-        const [selectedGroupInfo, setSelectedGroupInfo] = useState<
-                GroupStatusResponse["groupInfo"] | null
-        >(null);
+        const [selectedGroupInfo, setSelectedGroupInfo] = useState<GroupInfo | null>(null);
         const [error, setError] = useState("");
 	const { isOpen, onOpen, onClose } = useDisclosure();
 	const {
