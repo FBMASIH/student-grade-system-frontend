@@ -101,6 +101,34 @@ interface GroupStatusResponse {
         availableStudents?: RawGroupStudent[];
 }
 
+const parseBoolean = (value: unknown): boolean | undefined => {
+        if (typeof value === "boolean") {
+                return value;
+        }
+
+        if (typeof value === "number") {
+                if (!Number.isFinite(value)) {
+                        return undefined;
+                }
+
+                return value !== 0;
+        }
+
+        if (typeof value === "string") {
+                const normalized = value.trim().toLowerCase();
+
+                if (["true", "1", "yes", "y", "t"].includes(normalized)) {
+                        return true;
+                }
+
+                if (["false", "0", "no", "n", "f"].includes(normalized)) {
+                        return false;
+                }
+        }
+
+        return undefined;
+};
+
 const normalizeGroupStudent = (
         student: RawGroupStudent,
         overrides?: { isEnrolled?: boolean; canEnroll?: boolean }
@@ -111,32 +139,27 @@ const normalizeGroupStudent = (
         const firstName = typeof rawFirstName === "string" ? rawFirstName.trim() : "";
         const lastName = typeof rawLastName === "string" ? rawLastName.trim() : "";
 
-        const isEnrolled =
+        const resolvedIsEnrolled =
                 typeof overrides?.isEnrolled === "boolean"
                         ? overrides.isEnrolled
-                        : typeof student.isEnrolled === "boolean"
-                        ? student.isEnrolled
-                        : typeof student.is_enrolled === "boolean"
-                        ? student.is_enrolled
-                        : false;
+                        : parseBoolean(student.isEnrolled) ?? parseBoolean(student.is_enrolled) ?? false;
 
-        const canEnroll =
+        const resolvedCanEnroll =
                 typeof overrides?.canEnroll === "boolean"
                         ? overrides.canEnroll
-                        : typeof student.canEnroll === "boolean"
-                        ? student.canEnroll
-                        : typeof student.can_enroll === "boolean"
-                        ? student.can_enroll
-                        : false;
+                        : parseBoolean(student.canEnroll) ?? parseBoolean(student.can_enroll);
+
+        const canEnroll =
+                typeof resolvedCanEnroll === "boolean" ? resolvedCanEnroll : !resolvedIsEnrolled;
 
         return {
                 id: student.id,
                 username: student.username,
                 firstName: firstName || undefined,
                 lastName: lastName || undefined,
-                isEnrolled,
+                isEnrolled: resolvedIsEnrolled,
                 canEnroll,
-                enrollmentStatus: isEnrolled
+                enrollmentStatus: resolvedIsEnrolled
                         ? "enrolled"
                         : canEnroll
                         ? "can_enroll"
@@ -144,13 +167,40 @@ const normalizeGroupStudent = (
         };
 };
 
+const resolveNumber = (value: unknown, fallback = 0) => {
+        if (typeof value === "number" && Number.isFinite(value)) {
+                return value;
+        }
+
+        if (typeof value === "string") {
+                const parsed = Number(value);
+                if (Number.isFinite(parsed)) {
+                        return parsed;
+                }
+        }
+
+        return fallback;
+};
+
+const resolveOptionalNumber = (value: unknown): number | null => {
+        if (typeof value === "number" && Number.isFinite(value)) {
+                return value;
+        }
+
+        if (typeof value === "string") {
+                const parsed = Number(value);
+                if (Number.isFinite(parsed)) {
+                        return parsed;
+                }
+        }
+
+        return null;
+};
+
 const normalizeGroupInfo = (info?: RawGroupInfo | null): GroupInfo | null => {
         if (!info) {
                 return null;
         }
-
-        const resolveNumber = (value: unknown, fallback = 0) =>
-                typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
         const resolveString = (value: unknown) =>
                 typeof value === "string" ? value.trim() : value != null ? String(value) : "";
@@ -159,7 +209,7 @@ const normalizeGroupInfo = (info?: RawGroupInfo | null): GroupInfo | null => {
                 id: info.id,
                 groupNumber: resolveNumber(info.groupNumber ?? info.group_number),
                 courseName: resolveString(info.courseName ?? info.course_name),
-                capacity: resolveNumber(info.capacity ?? info.currentEnrollment ?? info.current_enrollment, 0),
+                capacity: resolveOptionalNumber(info.capacity),
                 currentEnrollment: resolveNumber(
                         info.currentEnrollment ?? info.current_enrollment
                 ),
@@ -218,11 +268,11 @@ interface GroupStudent {
 }
 
 interface GroupInfo {
-	id: number;
-	groupNumber: number;
-	courseName: string;
-	capacity: number;
-	currentEnrollment: number;
+        id: number;
+        groupNumber: number;
+        courseName: string;
+        capacity: number | null;
+        currentEnrollment: number;
 }
 
 interface Course {
@@ -976,7 +1026,9 @@ export default function CourseGroupsManagement() {
                                                                         <h3 className="text-lg font-bold">مدیریت دانشجویان گروه</h3>
                                                                         <Chip size="sm" variant="flat" color="primary">
                                                                                 ظرفیت: {selectedGroupInfo?.currentEnrollment ?? 0}/
-                                                                                {selectedGroupInfo?.capacity ?? 0}
+                                                                                {selectedGroupInfo?.capacity != null
+                                                                                        ? selectedGroupInfo.capacity
+                                                                                        : "نامحدود"}
                                                                         </Chip>
                                                                 </div>
                                                                 <span className="text-sm text-neutral-500">

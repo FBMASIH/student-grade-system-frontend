@@ -71,6 +71,34 @@ interface RawGroupInfo {
   current_enrollment?: number | null;
 }
 
+const parseBoolean = (value: unknown): boolean | undefined => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      return undefined;
+    }
+
+    return value !== 0;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+
+    if (["true", "1", "yes", "y", "t"].includes(normalized)) {
+      return true;
+    }
+
+    if (["false", "0", "no", "n", "f"].includes(normalized)) {
+      return false;
+    }
+  }
+
+  return undefined;
+};
+
 const normalizeGroupStudent = (
   student: RawGroupStudent,
   overrides?: { isEnrolled?: boolean; canEnroll?: boolean }
@@ -78,20 +106,12 @@ const normalizeGroupStudent = (
   const resolvedIsEnrolled =
     typeof overrides?.isEnrolled === "boolean"
       ? overrides.isEnrolled
-      : typeof student.isEnrolled === "boolean"
-      ? student.isEnrolled
-      : typeof student.is_enrolled === "boolean"
-      ? student.is_enrolled
-      : false;
+      : parseBoolean(student.isEnrolled) ?? parseBoolean(student.is_enrolled) ?? false;
 
   const resolvedCanEnroll =
     typeof overrides?.canEnroll === "boolean"
       ? overrides.canEnroll
-      : typeof student.canEnroll === "boolean"
-      ? student.canEnroll
-      : typeof student.can_enroll === "boolean"
-      ? student.can_enroll
-      : false;
+      : parseBoolean(student.canEnroll) ?? parseBoolean(student.can_enroll);
 
   const toOptionalString = (value: unknown): string | undefined => {
     if (typeof value === "string") {
@@ -113,15 +133,28 @@ const normalizeGroupStudent = (
     lastName,
     fullName,
     isEnrolled: resolvedIsEnrolled,
-    canEnroll: resolvedCanEnroll,
+    canEnroll:
+      typeof resolvedCanEnroll === "boolean" ? resolvedCanEnroll : !resolvedIsEnrolled,
   };
 };
 
 const normalizeGroupInfo = (info?: RawGroupInfo | null): GroupInfo | null => {
   if (!info) return null;
 
-  const toOptionalNumber = (value: unknown): number | undefined =>
-    typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  const toOptionalNumber = (value: unknown): number | undefined => {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+
+    return undefined;
+  };
 
   const toOptionalString = (value: unknown): string | undefined =>
     typeof value === "string" ? value.trim() : value != null ? String(value) : undefined;
