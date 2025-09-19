@@ -192,11 +192,42 @@ interface GroupResponse {
 }
 
 interface GroupStudentStatus {
-	id: number;
-	username: string;
-	isEnrolled: boolean;
-	canEnroll: boolean;
-	enrollmentStatus: "enrolled" | "can_enroll" | "cannot_enroll"; // Add enrollmentStatus property
+        id: number;
+        username: string;
+        isEnrolled: boolean;
+        canEnroll: boolean;
+        enrollmentStatus: "enrolled" | "can_enroll" | "cannot_enroll"; // Add enrollmentStatus property
+}
+
+interface ApiGroupStudent {
+        id: number;
+        username: string;
+        firstName?: string | null;
+        lastName?: string | null;
+        first_name?: string | null;
+        last_name?: string | null;
+        isEnrolled?: boolean | null;
+        canEnroll?: boolean | null;
+        is_enrolled?: boolean | null;
+        can_enroll?: boolean | null;
+}
+
+interface ApiGroupStudentsResponse {
+        students?: ApiGroupStudent[];
+        enrolled?: ApiGroupStudent[];
+        enrolledStudents?: ApiGroupStudent[];
+        available?: ApiGroupStudent[];
+        availableStudents?: ApiGroupStudent[];
+        groupInfo?: {
+                id: number;
+                groupNumber?: number | null;
+                group_number?: number | null;
+                courseName?: string | null;
+                course_name?: string | null;
+                capacity?: number | null;
+                currentEnrollment?: number | null;
+                current_enrollment?: number | null;
+        } | null;
 }
 
 export const courseGroupsApi = {
@@ -230,23 +261,9 @@ export const courseGroupsApi = {
 
         // Group Students Management
         getGroupStudents: (groupId: number) =>
-                axiosInstance.get<{
-                        students: Array<{
-                                id: number;
-                                username: string;
-                                firstName?: string;
-                                lastName?: string;
-                                isEnrolled: boolean;
-                                canEnroll: boolean;
-                        }>;
-                        groupInfo: {
-                                id: number;
-                                groupNumber: number;
-                                courseName: string;
-                                capacity: number;
-                                currentEnrollment: number;
-                        };
-                }>(`/course-groups/${groupId}/students`),
+                axiosInstance.get<ApiGroupStudentsResponse>(
+                        `/course-groups/${groupId}/students`
+                ),
 
         addStudentsToGroup: (groupId: number, studentIds: number[]) =>
                 axiosInstance.post(`/course-groups/${groupId}/students`, { studentIds }),
@@ -265,18 +282,12 @@ export const courseGroupsApi = {
 
         // Search students for group
         searchAvailableStudents: (groupId: number, query?: string) =>
-                axiosInstance.get<{
-                        students: Array<{
-                                id: number;
-                                username: string;
-                                firstName: string;
-                                lastName: string;
-                                isEnrolled: boolean;
-                                canEnroll: boolean;
-                        }>;
-                }>(`/course-groups/${groupId}/available-students`, {
+                axiosInstance.get<ApiGroupStudentsResponse>(
+                        `/course-groups/${groupId}/available-students`,
+                        {
                         params: { search: query },
-                }),
+                        }
+                ),
 
         // Add this new method
         addStudentsToGroupByUsername: (groupId: number, usernames: string[]) =>
@@ -309,22 +320,8 @@ export const groupsApi = {
 			data: { studentIds },
 		}),
 
-	getGroupStudents: (groupId: number) =>
-		axiosInstance.get<{
-			students: Array<{
-				id: number;
-				username: string;
-				isEnrolled: boolean;
-				canEnroll: boolean;
-			}>;
-			groupInfo: {
-				id: number;
-				groupNumber: number;
-				courseName: string;
-				capacity: number;
-				currentEnrollment: number;
-			};
-		}>(`/groups/${groupId}/students`),
+        getGroupStudents: (groupId: number) =>
+                axiosInstance.get<ApiGroupStudentsResponse>(`/groups/${groupId}/students`),
 
 	addStudentsToGroupByUsername: (groupId: number, usernames: string[]) =>
 		axiosInstance.post<{

@@ -44,6 +44,78 @@ interface GroupInfo {
   currentEnrollment?: number;
 }
 
+interface RawGroupStudent {
+  id: number;
+  username: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  isEnrolled?: boolean | null;
+  canEnroll?: boolean | null;
+  is_enrolled?: boolean | null;
+  can_enroll?: boolean | null;
+}
+
+interface RawGroupInfo {
+  id: number;
+  groupNumber?: number | null;
+  group_number?: number | null;
+  courseName?: string | null;
+  course_name?: string | null;
+  capacity?: number | null;
+  currentEnrollment?: number | null;
+  current_enrollment?: number | null;
+}
+
+const normalizeGroupStudent = (
+  student: RawGroupStudent,
+  overrides?: { isEnrolled?: boolean; canEnroll?: boolean }
+): GroupStudent => {
+  const resolvedIsEnrolled =
+    typeof overrides?.isEnrolled === "boolean"
+      ? overrides.isEnrolled
+      : typeof student.isEnrolled === "boolean"
+      ? student.isEnrolled
+      : typeof student.is_enrolled === "boolean"
+      ? student.is_enrolled
+      : false;
+
+  const resolvedCanEnroll =
+    typeof overrides?.canEnroll === "boolean"
+      ? overrides.canEnroll
+      : typeof student.canEnroll === "boolean"
+      ? student.canEnroll
+      : typeof student.can_enroll === "boolean"
+      ? student.can_enroll
+      : false;
+
+  return {
+    id: student.id,
+    username: student.username,
+    isEnrolled: resolvedIsEnrolled,
+    canEnroll: resolvedCanEnroll,
+  };
+};
+
+const normalizeGroupInfo = (info?: RawGroupInfo | null): GroupInfo | null => {
+  if (!info) return null;
+
+  const toOptionalNumber = (value: unknown): number | undefined =>
+    typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+  const toOptionalString = (value: unknown): string | undefined =>
+    typeof value === "string" ? value.trim() : value != null ? String(value) : undefined;
+
+  return {
+    id: info.id,
+    groupNumber: toOptionalNumber(info.groupNumber ?? info.group_number),
+    courseName: toOptionalString(info.courseName ?? info.course_name),
+    capacity: toOptionalNumber(info.capacity),
+    currentEnrollment: toOptionalNumber(info.currentEnrollment ?? info.current_enrollment),
+  };
+};
+
 export default function GroupManagement() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [page, setPage] = useState(1);
@@ -117,8 +189,24 @@ export default function GroupManagement() {
       setIsStudentsLoading(true);
       try {
         const { data } = await groupsApi.getGroupStudents(groupId);
-        setGroupStudents(data.students ?? []);
-        setGroupInfo(data.groupInfo ?? null);
+        const combined = Array.isArray(data.students) ? data.students : [];
+        let normalized = combined
+          .map((student) => normalizeGroupStudent(student))
+          .filter((student) => student.isEnrolled);
+
+        if (normalized.length === 0) {
+          const fallbackSource = Array.isArray(data.enrolledStudents)
+            ? data.enrolledStudents
+            : Array.isArray(data.enrolled)
+            ? data.enrolled
+            : [];
+          normalized = fallbackSource.map((student) =>
+            normalizeGroupStudent(student, { isEnrolled: true })
+          );
+        }
+
+        setGroupStudents(normalized);
+        setGroupInfo(normalizeGroupInfo(data.groupInfo));
         setSelectedStudentIds([]);
       } catch (err: any) {
         toast.error(err.response?.data?.message ?? err.message ?? "خطا در دریافت دانشجویان");

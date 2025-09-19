@@ -68,16 +68,113 @@ interface GroupStudentStatus extends GroupStudentBase {
         enrollmentStatus: EnrollmentStatus;
 }
 
-interface GroupStatusResponse {
-        groupInfo: {
-                id: number;
-                groupNumber: number;
-                courseName: string;
-                capacity: number;
-                currentEnrollment: number;
-        };
-        students: GroupStudentBase[];
+interface RawGroupStudent {
+        id: number;
+        username: string;
+        firstName?: string | null;
+        lastName?: string | null;
+        first_name?: string | null;
+        last_name?: string | null;
+        isEnrolled?: boolean | null;
+        canEnroll?: boolean | null;
+        is_enrolled?: boolean | null;
+        can_enroll?: boolean | null;
 }
+
+interface RawGroupInfo {
+        id: number;
+        groupNumber?: number | null;
+        group_number?: number | null;
+        courseName?: string | null;
+        course_name?: string | null;
+        capacity?: number | null;
+        currentEnrollment?: number | null;
+        current_enrollment?: number | null;
+}
+
+interface GroupStatusResponse {
+        groupInfo?: RawGroupInfo | null;
+        students?: RawGroupStudent[];
+        enrolled?: RawGroupStudent[];
+        enrolledStudents?: RawGroupStudent[];
+        available?: RawGroupStudent[];
+        availableStudents?: RawGroupStudent[];
+}
+
+const normalizeGroupStudent = (
+        student: RawGroupStudent,
+        overrides?: { isEnrolled?: boolean; canEnroll?: boolean }
+): GroupStudentStatus => {
+        const rawFirstName = student.firstName ?? student.first_name ?? "";
+        const rawLastName = student.lastName ?? student.last_name ?? "";
+
+        const firstName = typeof rawFirstName === "string" ? rawFirstName.trim() : "";
+        const lastName = typeof rawLastName === "string" ? rawLastName.trim() : "";
+
+        const isEnrolled =
+                typeof overrides?.isEnrolled === "boolean"
+                        ? overrides.isEnrolled
+                        : typeof student.isEnrolled === "boolean"
+                        ? student.isEnrolled
+                        : typeof student.is_enrolled === "boolean"
+                        ? student.is_enrolled
+                        : false;
+
+        const canEnroll =
+                typeof overrides?.canEnroll === "boolean"
+                        ? overrides.canEnroll
+                        : typeof student.canEnroll === "boolean"
+                        ? student.canEnroll
+                        : typeof student.can_enroll === "boolean"
+                        ? student.can_enroll
+                        : false;
+
+        return {
+                id: student.id,
+                username: student.username,
+                firstName: firstName || undefined,
+                lastName: lastName || undefined,
+                isEnrolled,
+                canEnroll,
+                enrollmentStatus: isEnrolled
+                        ? "enrolled"
+                        : canEnroll
+                        ? "can_enroll"
+                        : "cannot_enroll",
+        };
+};
+
+const normalizeGroupInfo = (info?: RawGroupInfo | null): GroupInfo | null => {
+        if (!info) {
+                return null;
+        }
+
+        const resolveNumber = (value: unknown, fallback = 0) =>
+                typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
+        const resolveString = (value: unknown) =>
+                typeof value === "string" ? value.trim() : value != null ? String(value) : "";
+
+        return {
+                id: info.id,
+                groupNumber: resolveNumber(info.groupNumber ?? info.group_number),
+                courseName: resolveString(info.courseName ?? info.course_name),
+                capacity: resolveNumber(info.capacity ?? info.currentEnrollment ?? info.current_enrollment, 0),
+                currentEnrollment: resolveNumber(
+                        info.currentEnrollment ?? info.current_enrollment
+                ),
+        };
+};
+
+const mergeStudentsById = (
+        base: GroupStudentStatus[],
+        additions: GroupStudentStatus[]
+): GroupStudentStatus[] => {
+        const map = new Map<number, GroupStudentStatus>();
+        base.forEach((student) => map.set(student.id, student));
+        additions.forEach((student) => map.set(student.id, student));
+        return Array.from(map.values());
+};
 
 interface RegisteredUser {
         id: number;
@@ -281,25 +378,64 @@ export default function CourseGroupsManagement() {
                         try {
                                 const response = await courseGroupsApi.getGroupStudents(groupId);
                                 const payload = response.data as GroupStatusResponse;
-                                const normalized: GroupStudentStatus[] =
-                                        (payload.students ?? []).map((student): GroupStudentStatus => ({
-                                                ...student,
-                                                enrollmentStatus: student.isEnrolled
-                                                        ? "enrolled"
-                                                        : student.canEnroll
-                                                        ? "can_enroll"
-                                                        : "cannot_enroll",
-                                        }));
+                                const combined = Array.isArray(payload.students)
+                                        ? payload.students
+                                        : [];
+                                const normalizedCombined = combined.map((student) =>
+                                        normalizeGroupStudent(student)
+                                );
 
-                                setEnrolledStudents(
-                                        normalized.filter((student) => student.isEnrolled)
+                                let enrolledList = normalizedCombined.filter(
+                                        (student) => student.isEnrolled
                                 );
+                                const fallbackEnrolledSource = Array.isArray(
+                                        payload.enrolledStudents
+                                )
+                                        ? payload.enrolledStudents
+                                        : Array.isArray(payload.enrolled)
+                                        ? payload.enrolled
+                                        : [];
+
+                                if (fallbackEnrolledSource.length > 0) {
+                                        const normalizedFallback = fallbackEnrolledSource.map((student) =>
+                                                normalizeGroupStudent(student, { isEnrolled: true })
+                                        );
+                                        enrolledList = mergeStudentsById(
+                                                enrolledList,
+                                                normalizedFallback
+                                        );
+                                }
+
+                                let availableList = normalizedCombined.filter(
+                                        (student) => !student.isEnrolled && student.canEnroll
+                                );
+                                const fallbackAvailableSource = Array.isArray(
+                                        payload.availableStudents
+                                )
+                                        ? payload.availableStudents
+                                        : Array.isArray(payload.available)
+                                        ? payload.available
+                                        : [];
+
+                                if (fallbackAvailableSource.length > 0) {
+                                        const normalizedFallback = fallbackAvailableSource.map(
+                                                (student) =>
+                                                        normalizeGroupStudent(student, {
+                                                                isEnrolled: false,
+                                                                canEnroll: true,
+                                                        })
+                                        );
+                                        availableList = mergeStudentsById(
+                                                availableList,
+                                                normalizedFallback
+                                        );
+                                }
+
+                                setEnrolledStudents(enrolledList);
                                 setAvailableStudents(
-                                        normalized.filter(
-                                                (student) => !student.isEnrolled && student.canEnroll
-                                        )
+                                        availableList.filter((student) => student.canEnroll)
                                 );
-                                setSelectedGroupInfo(payload.groupInfo ?? null);
+                                setSelectedGroupInfo(normalizeGroupInfo(payload.groupInfo));
                                 setSelectedForAddition([]);
                                 setSelectedForRemoval([]);
                         } catch (err: any) {
@@ -397,16 +533,19 @@ export default function CourseGroupsManagement() {
                                         selectedGroupId,
                                         value
                                 );
-                        const normalized: GroupStudentStatus[] =
-                                ((response.data.students ?? []) as GroupStudentBase[]).map(
-                                        (student): GroupStudentStatus => ({
-                                                ...student,
-                                                isEnrolled: false,
-                                                enrollmentStatus: student.canEnroll
-                                                        ? "can_enroll"
-                                                        : "cannot_enroll",
-                                        })
-                                );
+                        const sources = Array.isArray(response.data.students)
+                                ? response.data.students
+                                : Array.isArray(response.data.availableStudents)
+                                ? response.data.availableStudents
+                                : Array.isArray(response.data.available)
+                                ? response.data.available
+                                : [];
+                        const normalized = sources.map((student) =>
+                                normalizeGroupStudent(student, {
+                                        isEnrolled: false,
+                                        canEnroll: true,
+                                })
+                        );
                         setAvailableStudents(normalized.filter((student) => student.canEnroll));
                 } catch (err: any) {
                         toast.error(err.response?.data?.message || "خطا در جستجوی دانشجویان");
