@@ -47,22 +47,45 @@ interface GroupInfo {
   currentEnrollment?: number;
 }
 
-interface RawGroupStudent {
-  id: number;
-  username: string;
+interface StudentLike {
+  id?: number | string | null;
+  username?: string | null;
+  userName?: string | null;
+  user_name?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   fullName?: string | null;
   first_name?: string | null;
   last_name?: string | null;
   full_name?: string | null;
-  isEnrolled?: boolean | null;
-  canEnroll?: boolean | null;
-  is_enrolled?: boolean | null;
-  can_enroll?: boolean | null;
+  studentId?: number | string | null;
+  student_id?: number | string | null;
+  userId?: number | string | null;
+  user_id?: number | string | null;
+  memberId?: number | string | null;
+  member_id?: number | string | null;
+  personId?: number | string | null;
+  person_id?: number | string | null;
+  accountId?: number | string | null;
+  account_id?: number | string | null;
+  isEnrolled?: boolean | string | number | null;
+  canEnroll?: boolean | string | number | null;
+  is_enrolled?: boolean | string | number | null;
+  can_enroll?: boolean | string | number | null;
   enrollmentStatus?: string | null;
   enrollment_status?: string | null;
   status?: string | null;
+  [key: string]: unknown;
+}
+
+interface RawGroupStudent extends StudentLike {
+  student?: StudentLike | null;
+  user?: StudentLike | null;
+  profile?: StudentLike | null;
+  account?: StudentLike | null;
+  member?: StudentLike | null;
+  details?: StudentLike | null;
+  person?: StudentLike | null;
 }
 
 interface RawGroupInfo {
@@ -130,20 +153,89 @@ const parseFlexibleBoolean = (value: unknown): boolean | undefined => {
   return undefined;
 };
 
+const gatherStudentCandidates = (student: RawGroupStudent): StudentLike[] => {
+  const stack: Array<StudentLike | null | undefined> = [student];
+  const collected: StudentLike[] = [];
+  const visited = new Set<StudentLike>();
+  const nestedKeys: Array<keyof StudentLike> = [
+    "student",
+    "user",
+    "profile",
+    "account",
+    "member",
+    "details",
+    "person",
+  ];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || typeof current !== "object") {
+      continue;
+    }
+
+    if (visited.has(current)) {
+      continue;
+    }
+
+    visited.add(current);
+    collected.push(current);
+
+    for (const key of nestedKeys) {
+      const nested = current[key];
+      if (nested && typeof nested === "object") {
+        stack.push(nested as StudentLike);
+      }
+    }
+  }
+
+  return collected;
+};
+
 const resolveStatusValue = (student: RawGroupStudent) => {
-  const rawStatus =
-    student.enrollmentStatus ?? student.enrollment_status ?? student.status;
-  return typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
+  for (const candidate of gatherStudentCandidates(student)) {
+    const rawStatus =
+      candidate.enrollmentStatus ??
+      candidate.enrollment_status ??
+      (typeof candidate.status === "string" ? candidate.status : undefined);
+
+    if (typeof rawStatus === "string" && rawStatus.trim().length > 0) {
+      return rawStatus.trim().toLowerCase();
+    }
+  }
+
+  return "";
 };
 
 const resolveNameParts = (
   student: RawGroupStudent
 ): { firstName?: string; lastName?: string; fullName?: string } => {
-  let firstName = toNonEmptyString(student.firstName ?? student.first_name);
-  let lastName = toNonEmptyString(student.lastName ?? student.last_name);
-  const explicitFullName = toNonEmptyString(
-    student.fullName ?? student.full_name
-  );
+  let firstName: string | undefined;
+  let lastName: string | undefined;
+  let explicitFullName: string | undefined;
+
+  for (const candidate of gatherStudentCandidates(student)) {
+    if (!firstName) {
+      firstName =
+        toNonEmptyString(candidate.firstName) ??
+        toNonEmptyString(candidate.first_name);
+    }
+
+    if (!lastName) {
+      lastName =
+        toNonEmptyString(candidate.lastName) ??
+        toNonEmptyString(candidate.last_name);
+    }
+
+    if (!explicitFullName) {
+      explicitFullName =
+        toNonEmptyString(candidate.fullName) ??
+        toNonEmptyString(candidate.full_name);
+    }
+
+    if (firstName && lastName && explicitFullName) {
+      break;
+    }
+  }
 
   if ((!firstName || !lastName) && explicitFullName) {
     const parts = explicitFullName.split(/\s+/).filter(Boolean);
@@ -157,10 +249,102 @@ const resolveNameParts = (
 
   const fullName =
     explicitFullName ||
-    [firstName, lastName].filter((value): value is string => Boolean(value)).join(" ") ||
+    [firstName, lastName]
+      .filter((value): value is string => Boolean(value))
+      .join(" ") ||
     undefined;
 
   return { firstName, lastName, fullName };
+};
+
+const resolveBooleanFlag = (
+  student: RawGroupStudent,
+  keys: Array<keyof StudentLike>
+): boolean | undefined => {
+  for (const candidate of gatherStudentCandidates(student)) {
+    for (const key of keys) {
+      const parsed = parseFlexibleBoolean(candidate[key]);
+      if (typeof parsed === "boolean") {
+        return parsed;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const toOptionalNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+};
+
+const resolveStudentId = (student: RawGroupStudent): number | undefined => {
+  for (const candidate of gatherStudentCandidates(student)) {
+    const potentialValues = [
+      candidate.id,
+      candidate.studentId,
+      candidate.student_id,
+      candidate.userId,
+      candidate.user_id,
+      candidate.memberId,
+      candidate.member_id,
+      candidate.personId,
+      candidate.person_id,
+      candidate.accountId,
+      candidate.account_id,
+    ];
+
+    for (const value of potentialValues) {
+      const numeric = toOptionalNumber(value);
+      if (typeof numeric === "number") {
+        return numeric;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const resolveUsername = (student: RawGroupStudent): string => {
+  for (const candidate of gatherStudentCandidates(student)) {
+    const username =
+      toNonEmptyString(candidate.username) ??
+      toNonEmptyString(candidate.userName) ??
+      toNonEmptyString(candidate.user_name);
+
+    if (username) {
+      return username;
+    }
+  }
+
+  return "";
+};
+
+const FALLBACK_ID_OFFSET = 1_000_000_000;
+let fallbackIdSequence = 0;
+
+const generateFallbackId = (username: string) => {
+  if (username) {
+    let hash = 0;
+    for (let index = 0; index < username.length; index += 1) {
+      hash = (hash << 5) - hash + username.charCodeAt(index);
+      hash |= 0;
+    }
+    return FALLBACK_ID_OFFSET + Math.abs(hash) + username.length;
+  }
+
+  fallbackIdSequence += 1;
+  return FALLBACK_ID_OFFSET + fallbackIdSequence;
 };
 
 const normalizeGroupStudent = (
@@ -171,12 +355,14 @@ const normalizeGroupStudent = (
   const statusIndicatesEnrollment = STATUS_ENROLLED_VALUES.has(statusValue);
   const statusIndicatesEligibility = STATUS_ELIGIBLE_VALUES.has(statusValue);
 
-  const booleanIsEnrolled = parseFlexibleBoolean(
-    student.isEnrolled ?? student.is_enrolled
-  );
-  const booleanCanEnroll = parseFlexibleBoolean(
-    student.canEnroll ?? student.can_enroll
-  );
+  const booleanIsEnrolled = resolveBooleanFlag(student, [
+    "isEnrolled",
+    "is_enrolled",
+  ]);
+  const booleanCanEnroll = resolveBooleanFlag(student, [
+    "canEnroll",
+    "can_enroll",
+  ]);
 
   const resolvedIsEnrolled =
     typeof overrides?.isEnrolled === "boolean"
@@ -194,11 +380,16 @@ const normalizeGroupStudent = (
       ? true
       : !resolvedIsEnrolled;
 
+  const username = resolveUsername(student);
+  const resolvedId = resolveStudentId(student);
   const { firstName, lastName, fullName } = resolveNameParts(student);
 
   return {
-    id: student.id,
-    username: student.username,
+    id:
+      typeof resolvedId === "number"
+        ? resolvedId
+        : generateFallbackId(username),
+    username,
     firstName,
     lastName,
     fullName,
@@ -210,19 +401,95 @@ const normalizeGroupStudent = (
 const normalizeGroupInfo = (info?: RawGroupInfo | null): GroupInfo | null => {
   if (!info) return null;
 
-  const toOptionalNumber = (value: unknown): number | undefined =>
-    typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  const toOptionalString = (value: unknown): string | undefined => {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    }
 
-  const toOptionalString = (value: unknown): string | undefined =>
-    typeof value === "string" ? value.trim() : value != null ? String(value) : undefined;
+    if (value != null) {
+      const casted = String(value).trim();
+      return casted.length > 0 ? casted : undefined;
+    }
+
+    return undefined;
+  };
+
+  const groupNumberCandidate =
+    info.groupNumber ??
+    info.group_number ??
+    (info as unknown as { groupNo?: number; group_no?: number })?.groupNo ??
+    (info as unknown as { groupNo?: number; group_no?: number })?.group_no ??
+    (info as unknown as { number?: number })?.number;
+
+  const courseNameCandidate =
+    info.courseName ??
+    info.course_name ??
+    (info as unknown as { course?: { name?: string } })?.course?.name ??
+    (info as unknown as { name?: string })?.name;
+
+  const capacityCandidate =
+    info.capacity ??
+    (info as unknown as { maxCapacity?: number; max_capacity?: number })?.maxCapacity ??
+    (info as unknown as { maxCapacity?: number; max_capacity?: number })?.max_capacity ??
+    (info as unknown as { limit?: number })?.limit;
+
+  const currentEnrollmentCandidate =
+    info.currentEnrollment ??
+    info.current_enrollment ??
+    (info as unknown as { currentMembers?: number })?.currentMembers ??
+    (info as unknown as { membersCount?: number })?.membersCount ??
+    (info as unknown as { totalEnrolled?: number })?.totalEnrolled;
 
   return {
-    id: info.id,
-    groupNumber: toOptionalNumber(info.groupNumber ?? info.group_number),
-    courseName: toOptionalString(info.courseName ?? info.course_name),
-    capacity: toOptionalNumber(info.capacity),
-    currentEnrollment: toOptionalNumber(info.currentEnrollment ?? info.current_enrollment),
+    id: toOptionalNumber(info.id) ?? info.id,
+    groupNumber: toOptionalNumber(groupNumberCandidate),
+    courseName: toOptionalString(courseNameCandidate),
+    capacity: toOptionalNumber(capacityCandidate),
+    currentEnrollment: toOptionalNumber(currentEnrollmentCandidate),
   };
+};
+
+const studentCollator = new Intl.Collator("fa", { sensitivity: "base" });
+
+const mergeGroupStudents = (students: GroupStudent[]): GroupStudent[] => {
+  const map = new Map<string, GroupStudent>();
+
+  for (const student of students) {
+    const normalizedUsername = student.username.trim().toLowerCase();
+    const key = normalizedUsername || `id-${student.id}`;
+    const existing = map.get(key);
+
+    if (existing) {
+      const mergedIsEnrolled = existing.isEnrolled || student.isEnrolled;
+      const mergedCanEnroll = mergedIsEnrolled
+        ? false
+        : existing.canEnroll || student.canEnroll;
+
+      map.set(key, {
+        ...existing,
+        ...student,
+        id: student.isEnrolled ? student.id : existing.id,
+        isEnrolled: mergedIsEnrolled,
+        canEnroll: mergedCanEnroll,
+        firstName: existing.firstName ?? student.firstName,
+        lastName: existing.lastName ?? student.lastName,
+        fullName: existing.fullName ?? student.fullName,
+      });
+    } else {
+      map.set(key, student);
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.isEnrolled !== b.isEnrolled) {
+      return a.isEnrolled ? -1 : 1;
+    }
+
+    const nameA = a.fullName ?? a.username;
+    const nameB = b.fullName ?? b.username;
+    return studentCollator.compare(nameA, nameB);
+  });
 };
 
 export default function GroupManagement() {
@@ -314,22 +581,82 @@ export default function GroupManagement() {
       setIsStudentsLoading(true);
       try {
         const { data } = await groupsApi.getGroupStudents(groupId);
-        const combined = Array.isArray(data.students) ? data.students : [];
-        let normalized = combined.map((student) => normalizeGroupStudent(student));
+        const aggregated: GroupStudent[] = [];
 
-        if (normalized.length === 0) {
-          const fallbackSource = Array.isArray(data.enrolledStudents)
-            ? data.enrolledStudents
-            : Array.isArray(data.enrolled)
-            ? data.enrolled
-            : [];
-          normalized = fallbackSource.map((student) =>
-            normalizeGroupStudent(student, { isEnrolled: true })
-          );
-        }
+        const addStudentsFromSource = (
+          source: unknown,
+          overrides?: { isEnrolled?: boolean; canEnroll?: boolean }
+        ) => {
+          if (!Array.isArray(source)) {
+            return;
+          }
 
-        setGroupStudents(normalized);
-        setGroupInfo(normalizeGroupInfo(data.groupInfo));
+          source.forEach((student) => {
+            if (!student || typeof student !== "object") {
+              return;
+            }
+
+            const normalized = normalizeGroupStudent(
+              student as RawGroupStudent,
+              overrides
+            );
+
+            if (!normalized.username) {
+              return;
+            }
+
+            aggregated.push(normalized);
+          });
+        };
+
+        addStudentsFromSource(data.students);
+        addStudentsFromSource((data as any)?.studentsList);
+        addStudentsFromSource((data as any)?.students_list);
+        addStudentsFromSource((data as any)?.allStudents);
+        addStudentsFromSource(data.enrolledStudents, { isEnrolled: true });
+        addStudentsFromSource(data.enrolled, { isEnrolled: true });
+        addStudentsFromSource((data as any)?.registeredStudents, {
+          isEnrolled: true,
+        });
+        addStudentsFromSource((data as any)?.registered, { isEnrolled: true });
+        addStudentsFromSource((data as any)?.members, { isEnrolled: true });
+        addStudentsFromSource((data as any)?.active, { isEnrolled: true });
+        addStudentsFromSource(data.availableStudents, {
+          isEnrolled: false,
+          canEnroll: true,
+        });
+        addStudentsFromSource(data.available, {
+          isEnrolled: false,
+          canEnroll: true,
+        });
+        addStudentsFromSource((data as any)?.eligibleStudents, {
+          isEnrolled: false,
+          canEnroll: true,
+        });
+        addStudentsFromSource((data as any)?.eligible, {
+          isEnrolled: false,
+          canEnroll: true,
+        });
+        addStudentsFromSource((data as any)?.pending, {
+          isEnrolled: false,
+          canEnroll: true,
+        });
+        addStudentsFromSource((data as any)?.candidates, {
+          isEnrolled: false,
+          canEnroll: true,
+        });
+
+        const mergedStudents = mergeGroupStudents(aggregated);
+        setGroupStudents(mergedStudents);
+
+        const groupInfoSource =
+          data.groupInfo ??
+          (data as any)?.group ??
+          (data as any)?.groupDetails ??
+          (data as any)?.group_info ??
+          null;
+
+        setGroupInfo(normalizeGroupInfo(groupInfoSource));
         setSelectedForRemoval([]);
         setSelectedForAddition([]);
       } catch (err: any) {
