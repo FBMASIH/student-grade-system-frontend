@@ -32,6 +32,9 @@ import { toast } from "sonner";
 interface GroupStudent {
   id: number;
   username: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
   isEnrolled: boolean;
   canEnroll: boolean;
 }
@@ -90,9 +93,25 @@ const normalizeGroupStudent = (
       ? student.can_enroll
       : false;
 
+  const toOptionalString = (value: unknown): string | undefined => {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    }
+
+    return undefined;
+  };
+
+  const firstName = toOptionalString(student.firstName ?? student.first_name);
+  const lastName = toOptionalString(student.lastName ?? student.last_name);
+  const fullName = [firstName, lastName].filter(Boolean).join(" ") || undefined;
+
   return {
     id: student.id,
     username: student.username,
+    firstName,
+    lastName,
+    fullName,
     isEnrolled: resolvedIsEnrolled,
     canEnroll: resolvedCanEnroll,
   };
@@ -190,9 +209,7 @@ export default function GroupManagement() {
       try {
         const { data } = await groupsApi.getGroupStudents(groupId);
         const combined = Array.isArray(data.students) ? data.students : [];
-        let normalized = combined
-          .map((student) => normalizeGroupStudent(student))
-          .filter((student) => student.isEnrolled);
+        let normalized = combined.map((student) => normalizeGroupStudent(student));
 
         if (normalized.length === 0) {
           const fallbackSource = Array.isArray(data.enrolledStudents)
@@ -230,8 +247,37 @@ export default function GroupManagement() {
   const filteredStudents = useMemo(() => {
     const term = studentSearch.trim().toLowerCase();
     if (!term) return groupStudents;
-    return groupStudents.filter((student) => student.username.toLowerCase().includes(term));
+    return groupStudents.filter((student) => {
+      const usernameMatch = student.username.toLowerCase().includes(term);
+      const nameMatch = student.fullName?.toLowerCase().includes(term);
+      return usernameMatch || nameMatch;
+    });
   }, [groupStudents, studentSearch]);
+
+  const enrolledCount = useMemo(
+    () => groupStudents.filter((student) => student.isEnrolled).length,
+    [groupStudents]
+  );
+
+  const groupDetails = useMemo(() => {
+    if (!groupInfo) return "";
+
+    const details: string[] = [];
+
+    if (groupInfo.courseName) {
+      details.push(`درس: ${groupInfo.courseName}`);
+    }
+
+    if (groupInfo.groupNumber != null) {
+      details.push(`گروه ${groupInfo.groupNumber}`);
+    }
+
+    if (typeof groupInfo.capacity === "number") {
+      details.push(`ظرفیت: ${groupInfo.capacity}`);
+    }
+
+    return details.join(" | ");
+  }, [groupInfo]);
 
   const toggleStudentSelection = (studentId: number) => {
     setSelectedStudentIds((prev) =>
@@ -437,9 +483,12 @@ export default function GroupManagement() {
                     <p className="text-sm text-neutral-500">
                       {selectedGroup?.name ?? ""}
                     </p>
+                    {groupDetails && (
+                      <p className="text-xs text-neutral-500">{groupDetails}</p>
+                    )}
                   </div>
                   <Chip color="primary" variant="flat">
-                    {groupInfo?.currentEnrollment ?? groupStudents.length} دانشجو
+                    {groupInfo?.currentEnrollment ?? enrolledCount} دانشجو
                   </Chip>
                 </div>
               </ModalHeader>
@@ -465,7 +514,7 @@ export default function GroupManagement() {
                       <Table removeWrapper aria-label="لیست دانشجویان گروه">
                         <TableHeader>
                           <TableColumn className="w-16">انتخاب</TableColumn>
-                          <TableColumn>نام کاربری</TableColumn>
+                          <TableColumn>دانشجو</TableColumn>
                           <TableColumn>وضعیت</TableColumn>
                         </TableHeader>
                         <TableBody
@@ -483,14 +532,33 @@ export default function GroupManagement() {
                                   aria-label={`انتخاب ${student.username}`}
                                 />
                               </TableCell>
-                              <TableCell className="font-medium">{student.username}</TableCell>
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">
+                                    {student.fullName ?? student.username}
+                                  </span>
+                                  <span className="text-xs text-neutral-500">
+                                    {student.username}
+                                  </span>
+                                </div>
+                              </TableCell>
                               <TableCell>
                                 <Chip
                                   size="sm"
-                                  color={student.isEnrolled ? "success" : "default"}
+                                  color={
+                                    student.isEnrolled
+                                      ? "success"
+                                      : student.canEnroll
+                                      ? "primary"
+                                      : "default"
+                                  }
                                   variant="flat"
                                 >
-                                  {student.isEnrolled ? "عضو گروه" : "غیرفعال"}
+                                  {student.isEnrolled
+                                    ? "عضو گروه"
+                                    : student.canEnroll
+                                    ? "قابل ثبت‌نام"
+                                    : "غیرفعال"}
                                 </Chip>
                               </TableCell>
                             </TableRow>
