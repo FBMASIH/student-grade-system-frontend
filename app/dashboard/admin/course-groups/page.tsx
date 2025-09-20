@@ -57,6 +57,7 @@ type EnrollmentStatus = "enrolled" | "can_enroll" | "cannot_enroll";
 
 interface GroupStudentBase {
         id: number;
+        originalId?: number;
         username: string;
         firstName?: string;
         lastName?: string;
@@ -69,23 +70,45 @@ interface GroupStudentStatus extends GroupStudentBase {
         enrollmentStatus: EnrollmentStatus;
 }
 
-interface RawGroupStudent {
-        id: number;
-        username: string;
+interface StudentLike {
+        id?: number | string | null;
+        username?: string | null;
+        userName?: string | null;
+        user_name?: string | null;
         firstName?: string | null;
         lastName?: string | null;
         fullName?: string | null;
         first_name?: string | null;
         last_name?: string | null;
         full_name?: string | null;
-        isEnrolled?: boolean | null;
-        canEnroll?: boolean | null;
-        is_enrolled?: boolean | null;
-        can_enroll?: boolean | null;
+        isEnrolled?: boolean | string | number | null;
+        canEnroll?: boolean | string | number | null;
+        is_enrolled?: boolean | string | number | null;
+        can_enroll?: boolean | string | number | null;
         enrollmentStatus?: string | null;
         enrollment_status?: string | null;
         status?: string | null;
+        studentId?: number | string | null;
+        student_id?: number | string | null;
+        userId?: number | string | null;
+        user_id?: number | string | null;
+        memberId?: number | string | null;
+        member_id?: number | string | null;
+        personId?: number | string | null;
+        person_id?: number | string | null;
+        accountId?: number | string | null;
+        account_id?: number | string | null;
+        member?: StudentLike | null;
+        student?: StudentLike | null;
+        user?: StudentLike | null;
+        profile?: StudentLike | null;
+        account?: StudentLike | null;
+        person?: StudentLike | null;
+        details?: StudentLike | null;
+        [key: string]: unknown;
 }
+
+interface RawGroupStudent extends StudentLike {}
 
 interface RawGroupInfo {
         id: number;
@@ -101,10 +124,21 @@ interface RawGroupInfo {
 interface GroupStatusResponse {
         groupInfo?: RawGroupInfo | null;
         students?: RawGroupStudent[];
+        studentsList?: RawGroupStudent[];
+        students_list?: RawGroupStudent[];
+        allStudents?: RawGroupStudent[];
         enrolled?: RawGroupStudent[];
         enrolledStudents?: RawGroupStudent[];
+        registeredStudents?: RawGroupStudent[];
+        registered?: RawGroupStudent[];
+        members?: RawGroupStudent[];
+        active?: RawGroupStudent[];
         available?: RawGroupStudent[];
         availableStudents?: RawGroupStudent[];
+        eligibleStudents?: RawGroupStudent[];
+        eligible?: RawGroupStudent[];
+        pending?: RawGroupStudent[];
+        candidates?: RawGroupStudent[];
 }
 
 const STATUS_ENROLLED_VALUES = new Set([
@@ -156,18 +190,102 @@ const parseFlexibleBoolean = (value: unknown): boolean | undefined => {
         return undefined;
 };
 
+const gatherStudentCandidates = (student: RawGroupStudent): StudentLike[] => {
+        const visited = new Set<StudentLike>();
+        const queue: StudentLike[] = [student];
+        const candidates: StudentLike[] = [];
+        const nestedKeys = [
+                "student",
+                "user",
+                "profile",
+                "account",
+                "member",
+                "person",
+                "details",
+        ];
+
+        while (queue.length > 0) {
+                const current = queue.shift();
+                if (!current || typeof current !== "object" || visited.has(current)) {
+                        continue;
+                }
+
+                visited.add(current);
+                candidates.push(current);
+
+                for (const key of nestedKeys) {
+                        const nested = current[key];
+                        if (nested && typeof nested === "object") {
+                                queue.push(nested as StudentLike);
+                        }
+                }
+        }
+
+        return candidates;
+};
+
 const resolveStatusValue = (student: RawGroupStudent) => {
-        const rawStatus =
-                student.enrollmentStatus ?? student.enrollment_status ?? student.status;
-        return typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
+        for (const candidate of gatherStudentCandidates(student)) {
+                const rawStatus =
+                        candidate.enrollmentStatus ??
+                        candidate.enrollment_status ??
+                        candidate.status;
+
+                if (typeof rawStatus === "string" && rawStatus.trim().length > 0) {
+                        return rawStatus.trim().toLowerCase();
+                }
+        }
+
+        return "";
+};
+
+const resolveBooleanFlag = (
+        student: RawGroupStudent,
+        keys: Array<keyof StudentLike>
+): boolean | undefined => {
+        for (const candidate of gatherStudentCandidates(student)) {
+                for (const key of keys) {
+                        const value = candidate[key];
+                        const parsed = parseFlexibleBoolean(value);
+                        if (typeof parsed === "boolean") {
+                                return parsed;
+                        }
+                }
+        }
+
+        return undefined;
 };
 
 const resolveNameParts = (
         student: RawGroupStudent
 ): { firstName?: string; lastName?: string; fullName?: string } => {
-        let firstName = toNonEmptyString(student.firstName ?? student.first_name);
-        let lastName = toNonEmptyString(student.lastName ?? student.last_name);
-        const explicitFullName = toNonEmptyString(student.fullName ?? student.full_name);
+        let firstName: string | undefined;
+        let lastName: string | undefined;
+        let explicitFullName: string | undefined;
+
+        for (const candidate of gatherStudentCandidates(student)) {
+                if (!firstName) {
+                        firstName =
+                                toNonEmptyString(candidate.firstName) ??
+                                toNonEmptyString(candidate.first_name);
+                }
+
+                if (!lastName) {
+                        lastName =
+                                toNonEmptyString(candidate.lastName) ??
+                                toNonEmptyString(candidate.last_name);
+                }
+
+                if (!explicitFullName) {
+                        explicitFullName =
+                                toNonEmptyString(candidate.fullName) ??
+                                toNonEmptyString(candidate.full_name);
+                }
+
+                if (firstName && lastName && explicitFullName) {
+                        break;
+                }
+        }
 
         if ((!firstName || !lastName) && explicitFullName) {
                 const parts = explicitFullName.split(/\s+/).filter(Boolean);
@@ -189,6 +307,80 @@ const resolveNameParts = (
         return { firstName, lastName, fullName };
 };
 
+const toOptionalNumber = (value: unknown): number | undefined => {
+        if (typeof value === "number" && Number.isFinite(value)) {
+                return value;
+        }
+
+        if (typeof value === "string") {
+                const parsed = Number(value);
+                if (Number.isFinite(parsed)) {
+                        return parsed;
+                }
+        }
+
+        return undefined;
+};
+
+const resolveStudentId = (student: RawGroupStudent): number | undefined => {
+        for (const candidate of gatherStudentCandidates(student)) {
+                const potentialValues = [
+                        candidate.id,
+                        candidate.studentId,
+                        candidate.student_id,
+                        candidate.userId,
+                        candidate.user_id,
+                        candidate.memberId,
+                        candidate.member_id,
+                        candidate.personId,
+                        candidate.person_id,
+                        candidate.accountId,
+                        candidate.account_id,
+                ];
+
+                for (const value of potentialValues) {
+                        const numeric = toOptionalNumber(value);
+                        if (typeof numeric === "number") {
+                                return numeric;
+                        }
+                }
+        }
+
+        return undefined;
+};
+
+const resolveUsername = (student: RawGroupStudent): string => {
+        for (const candidate of gatherStudentCandidates(student)) {
+                const username =
+                        toNonEmptyString(candidate.username) ??
+                        toNonEmptyString(candidate.userName) ??
+                        toNonEmptyString(candidate.user_name);
+
+                if (username) {
+                        return username;
+                }
+        }
+
+        return "";
+};
+
+const FALLBACK_ID_OFFSET = 1_000_000_000;
+let fallbackIdSequence = 0;
+
+const generateFallbackId = (username: string) => {
+        if (username) {
+                let hash = 0;
+                for (let index = 0; index < username.length; index += 1) {
+                        hash = (hash << 5) - hash + username.charCodeAt(index);
+                        hash |= 0;
+                }
+                return FALLBACK_ID_OFFSET + Math.abs(hash) + username.length;
+        }
+
+        fallbackIdSequence += 1;
+        return FALLBACK_ID_OFFSET + fallbackIdSequence;
+};
+
 const normalizeGroupStudent = (
         student: RawGroupStudent,
         overrides?: { isEnrolled?: boolean; canEnroll?: boolean }
@@ -197,12 +389,14 @@ const normalizeGroupStudent = (
         const statusIndicatesEnrollment = STATUS_ENROLLED_VALUES.has(statusValue);
         const statusIndicatesEligibility = STATUS_ELIGIBLE_VALUES.has(statusValue);
 
-        const booleanIsEnrolled = parseFlexibleBoolean(
-                student.isEnrolled ?? student.is_enrolled
-        );
-        const booleanCanEnroll = parseFlexibleBoolean(
-                student.canEnroll ?? student.can_enroll
-        );
+        const booleanIsEnrolled = resolveBooleanFlag(student, [
+                "isEnrolled",
+                "is_enrolled",
+        ]);
+        const booleanCanEnroll = resolveBooleanFlag(student, [
+                "canEnroll",
+                "can_enroll",
+        ]);
 
         const resolvedIsEnrolled =
                 typeof overrides?.isEnrolled === "boolean"
@@ -221,17 +415,25 @@ const normalizeGroupStudent = (
                         : !resolvedIsEnrolled;
 
         const finalCanEnroll = resolvedIsEnrolled ? false : candidateCanEnroll;
+        const username = resolveUsername(student);
+        const resolvedId = resolveStudentId(student);
+        const { firstName, lastName, fullName } = resolveNameParts(student);
+
+        const idForUi =
+                typeof resolvedId === "number"
+                        ? resolvedId
+                        : generateFallbackId(username);
+
         const enrollmentStatus: EnrollmentStatus = resolvedIsEnrolled
                 ? "enrolled"
                 : finalCanEnroll
                 ? "can_enroll"
                 : "cannot_enroll";
 
-        const { firstName, lastName, fullName } = resolveNameParts(student);
-
         return {
-                id: student.id,
-                username: student.username,
+                id: idForUi,
+                originalId: typeof resolvedId === "number" ? resolvedId : undefined,
+                username,
                 firstName,
                 lastName,
                 fullName,
@@ -263,13 +465,83 @@ const normalizeGroupInfo = (info?: RawGroupInfo | null): GroupInfo | null => {
         };
 };
 
+const determineEnrollmentStatus = (
+        isEnrolled: boolean,
+        canEnroll: boolean
+): EnrollmentStatus => (isEnrolled ? "enrolled" : canEnroll ? "can_enroll" : "cannot_enroll");
+
 const mergeStudentsById = (
         base: GroupStudentStatus[],
         additions: GroupStudentStatus[]
 ): GroupStudentStatus[] => {
-        const map = new Map<number, GroupStudentStatus>();
-        base.forEach((student) => map.set(student.id, student));
-        additions.forEach((student) => map.set(student.id, student));
+        const map = new Map<string, GroupStudentStatus>();
+        let fallbackKey = 0;
+
+        const isValidId = (value: number | undefined): value is number =>
+                typeof value === "number" && Number.isFinite(value) && value > 0;
+
+        const getIdentityKey = (student: GroupStudentStatus) => {
+                const normalizedUsername = student.username?.trim().toLowerCase();
+                if (normalizedUsername) {
+                        return `username:${normalizedUsername}`;
+                }
+
+                if (isValidId(student.originalId)) {
+                        return `original:${student.originalId}`;
+                }
+
+                if (isValidId(student.id)) {
+                        return `id:${student.id}`;
+                }
+
+                fallbackKey += 1;
+                return `fallback:${fallbackKey}`;
+        };
+
+        const upsert = (student: GroupStudentStatus) => {
+                const key = getIdentityKey(student);
+                const existing = map.get(key);
+
+                if (!existing) {
+                        map.set(key, student);
+                        return;
+                }
+
+                const mergedIsEnrolled = existing.isEnrolled || student.isEnrolled;
+                const mergedCanEnroll = mergedIsEnrolled
+                        ? false
+                        : existing.canEnroll || student.canEnroll;
+
+                const mergedOriginalId = isValidId(existing.originalId)
+                        ? existing.originalId
+                        : isValidId(student.originalId)
+                        ? student.originalId
+                        : undefined;
+
+                const mergedId = isValidId(existing.id) && !isValidId(student.id)
+                        ? existing.id
+                        : student.id;
+
+                map.set(key, {
+                        ...existing,
+                        ...student,
+                        id: mergedId,
+                        originalId: mergedOriginalId,
+                        isEnrolled: mergedIsEnrolled,
+                        canEnroll: mergedCanEnroll,
+                        enrollmentStatus: determineEnrollmentStatus(
+                                mergedIsEnrolled,
+                                mergedCanEnroll
+                        ),
+                        firstName: existing.firstName ?? student.firstName,
+                        lastName: existing.lastName ?? student.lastName,
+                        fullName: existing.fullName ?? student.fullName,
+                });
+        };
+
+        base.forEach(upsert);
+        additions.forEach(upsert);
+
         return Array.from(map.values());
 };
 
@@ -474,63 +746,77 @@ export default function CourseGroupsManagement() {
                         try {
                                 const response = await courseGroupsApi.getGroupStudents(groupId);
                                 const payload = response.data as GroupStatusResponse;
-                                const combined = Array.isArray(payload.students)
-                                        ? payload.students
-                                        : [];
-                                const normalizedCombined = combined.map((student) =>
-                                        normalizeGroupStudent(student)
-                                );
+                                let aggregated: GroupStudentStatus[] = [];
 
-                                let enrolledList = normalizedCombined.filter(
-                                        (student) => student.isEnrolled
-                                );
-                                const fallbackEnrolledSource = Array.isArray(
-                                        payload.enrolledStudents
-                                )
-                                        ? payload.enrolledStudents
-                                        : Array.isArray(payload.enrolled)
-                                        ? payload.enrolled
-                                        : [];
+                                const addStudentsFromSource = (
+                                        source: unknown,
+                                        overrides?: { isEnrolled?: boolean; canEnroll?: boolean }
+                                ) => {
+                                        if (!Array.isArray(source)) {
+                                                return;
+                                        }
 
-                                if (fallbackEnrolledSource.length > 0) {
-                                        const normalizedFallback = fallbackEnrolledSource.map((student) =>
-                                                normalizeGroupStudent(student, { isEnrolled: true })
-                                        );
-                                        enrolledList = mergeStudentsById(
-                                                enrolledList,
-                                                normalizedFallback
-                                        );
-                                }
+                                        const normalized: GroupStudentStatus[] = [];
 
-                                let availableList = normalizedCombined.filter(
+                                        source.forEach((student) => {
+                                                if (!student || typeof student !== "object") {
+                                                        return;
+                                                }
+
+                                                const normalizedStudent = normalizeGroupStudent(
+                                                        student as RawGroupStudent,
+                                                        overrides
+                                                );
+                                                normalized.push(normalizedStudent);
+                                        });
+
+                                        if (normalized.length > 0) {
+                                                aggregated = mergeStudentsById(aggregated, normalized);
+                                        }
+                                };
+
+                                addStudentsFromSource(payload.students);
+                                addStudentsFromSource(payload.studentsList);
+                                addStudentsFromSource(payload.students_list);
+                                addStudentsFromSource(payload.allStudents);
+                                addStudentsFromSource(payload.enrolledStudents, { isEnrolled: true });
+                                addStudentsFromSource(payload.enrolled, { isEnrolled: true });
+                                addStudentsFromSource(payload.registeredStudents, { isEnrolled: true });
+                                addStudentsFromSource(payload.registered, { isEnrolled: true });
+                                addStudentsFromSource(payload.members, { isEnrolled: true });
+                                addStudentsFromSource(payload.active, { isEnrolled: true });
+                                addStudentsFromSource(payload.availableStudents, {
+                                        isEnrolled: false,
+                                        canEnroll: true,
+                                });
+                                addStudentsFromSource(payload.available, {
+                                        isEnrolled: false,
+                                        canEnroll: true,
+                                });
+                                addStudentsFromSource(payload.eligibleStudents, {
+                                        isEnrolled: false,
+                                        canEnroll: true,
+                                });
+                                addStudentsFromSource(payload.eligible, {
+                                        isEnrolled: false,
+                                        canEnroll: true,
+                                });
+                                addStudentsFromSource(payload.pending, {
+                                        isEnrolled: false,
+                                        canEnroll: true,
+                                });
+                                addStudentsFromSource(payload.candidates, {
+                                        isEnrolled: false,
+                                        canEnroll: true,
+                                });
+
+                                const enrolledList = aggregated.filter((student) => student.isEnrolled);
+                                const availableList = aggregated.filter(
                                         (student) => !student.isEnrolled && student.canEnroll
                                 );
-                                const fallbackAvailableSource = Array.isArray(
-                                        payload.availableStudents
-                                )
-                                        ? payload.availableStudents
-                                        : Array.isArray(payload.available)
-                                        ? payload.available
-                                        : [];
-
-                                if (fallbackAvailableSource.length > 0) {
-                                        const normalizedFallback = fallbackAvailableSource.map(
-                                                (student) =>
-                                                        normalizeGroupStudent(student, {
-                                                                isEnrolled: false,
-                                                                canEnroll: true,
-                                                        })
-                                        );
-                                        availableList = mergeStudentsById(
-                                                availableList,
-                                                normalizedFallback
-                                        );
-                                }
 
                                 setEnrolledStudents(enrolledList);
-                                setAvailableStudents(
-                                        availableList.filter((student) => student.canEnroll)
-                                );
+                                setAvailableStudents(availableList);
                                 setSelectedGroupInfo(normalizeGroupInfo(payload.groupInfo));
                                 setSelectedForAddition([]);
                                 setSelectedForRemoval([]);
@@ -556,6 +842,28 @@ export default function CourseGroupsManagement() {
                 setAvailableSearch("");
                 await loadGroupStudents(groupId);
                 onManageStudentsOpen();
+        };
+
+        const getRemovalId = (student: GroupStudentStatus): number | undefined => {
+                if (
+                        typeof student.originalId === "number" &&
+                        Number.isFinite(student.originalId)
+                ) {
+                        return student.originalId;
+                }
+
+                return Number.isFinite(student.id) ? student.id : undefined;
+        };
+
+        const getAdditionId = (student: GroupStudentStatus): number | undefined => {
+                if (
+                        typeof student.originalId === "number" &&
+                        Number.isFinite(student.originalId)
+                ) {
+                        return student.originalId;
+                }
+
+                return undefined;
         };
 
         const handleAddStudentsToGroup = async () => {
@@ -596,7 +904,13 @@ export default function CourseGroupsManagement() {
                 }
         };
 
-        const handleAvailableSelection = (studentId: number) => {
+        const handleAvailableSelection = (student: GroupStudentStatus) => {
+                const studentId = getAdditionId(student);
+
+                if (typeof studentId !== "number") {
+                        return;
+                }
+
                 setSelectedForAddition((prevSelected) =>
                         prevSelected.includes(studentId)
                                 ? prevSelected.filter((id) => id !== studentId)
@@ -604,7 +918,13 @@ export default function CourseGroupsManagement() {
                 );
         };
 
-        const handleRemovalSelection = (studentId: number) => {
+        const handleRemovalSelection = (student: GroupStudentStatus) => {
+                const studentId = getRemovalId(student);
+
+                if (typeof studentId !== "number") {
+                        return;
+                }
+
                 setSelectedForRemoval((prevSelected) =>
                         prevSelected.includes(studentId)
                                 ? prevSelected.filter((id) => id !== studentId)
@@ -636,12 +956,16 @@ export default function CourseGroupsManagement() {
                                 : Array.isArray(response.data.available)
                                 ? response.data.available
                                 : [];
-                        const normalized = sources.map((student) =>
-                                normalizeGroupStudent(student, {
-                                        isEnrolled: false,
-                                        canEnroll: true,
-                                })
-                        );
+                        const normalized = sources
+                                .filter(
+                                        (student) => Boolean(student) && typeof student === "object"
+                                )
+                                .map((student) =>
+                                        normalizeGroupStudent(student as RawGroupStudent, {
+                                                isEnrolled: false,
+                                                canEnroll: true,
+                                        })
+                                );
                         setAvailableStudents(normalized.filter((student) => student.canEnroll));
                 } catch (err: any) {
                         toast.error(err.response?.data?.message || "خطا در جستجوی دانشجویان");
@@ -1108,19 +1432,30 @@ export default function CourseGroupsManagement() {
                                                                                                                         ? "در حال بارگذاری..."
                                                                                                                         : "دانشجویی یافت نشد"
                                                                                                         }>
-                                                                                                        {filteredEnrolledStudents.map((student) => (
-                                                                                                                <TableRow key={student.id}>
-                                                                                                                        <TableCell>
-                                                                                                                                <Checkbox
-                                                                                                                                        isSelected={selectedForRemoval.includes(student.id)}
-                                                                                                                                        onValueChange={() => handleRemovalSelection(student.id)}
-                                                                                                                                        aria-label={`انتخاب ${formatUserName(student)}`}
-                                                                                                                                />
-                                                                                                                        </TableCell>
-                                                                                                                        <TableCell className="font-medium">{formatUserName(student)}</TableCell>
-                                                                                                                        <TableCell className="text-sm text-neutral-500">{student.username}</TableCell>
-                                                                                                                </TableRow>
-                                                                                                        ))}
+                                        {filteredEnrolledStudents.map((student) => {
+                                                const removalId = getRemovalId(student);
+                                                const isSelectable = typeof removalId === "number";
+
+                                                return (
+                                                        <TableRow key={student.id}>
+                                                                <TableCell>
+                                                                        <Checkbox
+                                                                                isSelected={
+                                                                                        isSelectable &&
+                                                                                        selectedForRemoval.includes(removalId)
+                                                                                }
+                                                                                onValueChange={() =>
+                                                                                        handleRemovalSelection(student)
+                                                                                }
+                                                                                isDisabled={!isSelectable}
+                                                                                aria-label={`انتخاب ${formatUserName(student)}`}
+                                                                        />
+                                                                </TableCell>
+                                                                <TableCell className="font-medium">{formatUserName(student)}</TableCell>
+                                                                <TableCell className="text-sm text-neutral-500">{student.username}</TableCell>
+                                                        </TableRow>
+                                                );
+                                        })}
                                                                                                 </TableBody>
                                                                                         </Table>
                                                                                 </div>
@@ -1173,20 +1508,31 @@ export default function CourseGroupsManagement() {
                                                                                                                         ? "در حال بارگذاری..."
                                                                                                                         : "دانشجویی برای افزودن یافت نشد"
                                                                                                         }>
-                                                                                                        {filteredAvailableStudents.map((student) => (
-                                                                                                                <TableRow key={student.id}>
-                                                                                                                        <TableCell>
-                                                                                                                                <Checkbox
-                                                                                                                                        isSelected={selectedForAddition.includes(student.id)}
-                                                                                                                                        onValueChange={() => handleAvailableSelection(student.id)}
-                                                                                                                                        isDisabled={!student.canEnroll}
-                                                                                                                                        aria-label={`انتخاب ${formatUserName(student)}`}
-                                                                                                                                />
-                                                                                                                        </TableCell>
-                                                                                                                        <TableCell className="font-medium">{formatUserName(student)}</TableCell>
-                                                                                                                        <TableCell className="text-sm text-neutral-500">{student.username}</TableCell>
-                                                                                                                </TableRow>
-                                                                                                        ))}
+                                        {filteredAvailableStudents.map((student) => {
+                                                const additionId = getAdditionId(student);
+                                                const isSelectable =
+                                                        typeof additionId === "number" && student.canEnroll;
+
+                                                return (
+                                                        <TableRow key={student.id}>
+                                                                <TableCell>
+                                                                        <Checkbox
+                                                                                isSelected={
+                                                                                        isSelectable &&
+                                                                                        selectedForAddition.includes(additionId)
+                                                                                }
+                                                                                onValueChange={() =>
+                                                                                        handleAvailableSelection(student)
+                                                                                }
+                                                                                isDisabled={!isSelectable}
+                                                                                aria-label={`انتخاب ${formatUserName(student)}`}
+                                                                        />
+                                                                </TableCell>
+                                                                <TableCell className="font-medium">{formatUserName(student)}</TableCell>
+                                                                <TableCell className="text-sm text-neutral-500">{student.username}</TableCell>
+                                                        </TableRow>
+                                                );
+                                        })}
                                                                                                 </TableBody>
                                                                                         </Table>
                                                                                 </div>
